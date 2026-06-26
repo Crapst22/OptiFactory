@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Problem {
+  id             String   @id @default(cuid())
+  title          String
+  problemType    String   @default("MAX") // MAX | MIN
+  method         String   @default("AUTO") // GRAPHICAL | SIMPLEX | DUAL_SIMPLEX | BIG_M | TWO_PHASE | AUTO
+  variables      Int      @default(2)
+  constraints    Int      @default(2)
+  objective      String   // JSON: coefficients array
+  constraintsData String  // JSON: constraint rows
+  variableTypes  String   @default("[]") // JSON: ["positive","integer","binary","free"]
+  status         String   @default("DRAFT") // DRAFT | SOLVED | ERROR
+  result         String?  // JSON: full result
+  scenarioId     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  scenario       Scenario? @relation(fields: [scenarioId], references: [id])
+}
+
+model Scenario {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  problems     Problem[]
+}
+
+model Exercise {
+  id          String   @id @default(cuid())
+  title       String
+  difficulty  String   @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
+  type        String   @default("MAX")
+  description String
+  statement   String
+  objective   String   // JSON: coefficients
+  constraints String   // JSON: constraint rows
+  solution    String   // JSON: full solution
+  createdAt   DateTime @default(now())
+}
+
+model Tutorial {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String   // JSON: sections with text, images, examples
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model HistoryEntry {
+  id          String   @id @default(cuid())
+  problemId   String?
+  title       String
+  method      String
+  result      String   // JSON
+  createdAt   DateTime @default(now())
+}
