@@ -12,7 +12,8 @@ import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { useProblem } from "@/hooks/use-problem"
-import { setCurrentProblem } from "@/lib/store"
+import { setCurrentProblem, setCurrentResult } from "@/lib/store"
+import { solveProblem } from "@/services/simplex"
 import { ProblemType, SolveMethod, VariableType, ConstraintRow } from "@/types"
 import { Plus, Trash2, Copy, ArrowRight, Calculator, Brain } from "lucide-react"
 import { motion } from "framer-motion"
@@ -49,7 +50,13 @@ export default function NewProblemPage() {
 
   const handleSaveAndGo = () => {
     setCurrentProblem(problem)
-    toast.success("Problema guardado")
+    try {
+      const result = solveProblem(problem)
+      setCurrentResult(result)
+      toast.success("Problema resuelto exitosamente")
+    } catch {
+      toast.error("El problema no pudo resolverse automáticamente")
+    }
     router.push("/solve")
   }
 
