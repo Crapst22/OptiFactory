@@ -12,7 +12,7 @@ import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { useProblem } from "@/hooks/use-problem"
-import { setCurrentProblem, setCurrentResult } from "@/lib/store"
+import { setCurrentProblem, setCurrentResult, saveProblem } from "@/lib/store"
 import { solveProblem } from "@/services/simplex"
 import { ProblemType, SolveMethod, VariableType, ConstraintRow } from "@/types"
 import { Plus, Trash2, Copy, ArrowRight, Calculator, Brain } from "lucide-react"
@@ -50,6 +50,7 @@ export default function NewProblemPage() {
 
   const handleSaveAndGo = () => {
     setCurrentProblem(problem)
+    saveProblem(problem)
     try {
       const result = solveProblem(problem)
       setCurrentResult(result)

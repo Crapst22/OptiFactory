@@ -32,6 +32,7 @@ import {
   GitCompare,
   Info,
   Play,
+  Settings2,
   StepForward,
   Target,
   TrendingUp,
@@ -39,9 +40,19 @@ import {
   XCircle,
 } from "lucide-react"
 import { solveProblem } from "@/services/simplex"
-import { getCurrentProblem, getCurrentResult, setCurrentResult } from "@/lib/store"
+import { getCurrentProblem, getCurrentResult, setCurrentProblem, setCurrentResult, saveProblem } from "@/lib/store"
 import { useConfig } from "@/hooks/use-config"
 import { formatNumber } from "@/utils/format"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import type { SimplexResult, SimplexStep, SimplexTable, ProblemData } from "@/types"
 
 const methodLabels: Record<string, string> = {
@@ -255,6 +266,16 @@ export default function SolvePage() {
             <BarChart3 className="h-4 w-4" />
             Análisis de Sensibilidad
           </Button>
+          <ParametersDialog
+            problem={problem}
+            onResolve={(updated) => {
+              setCurrentProblem(updated)
+              saveProblem(updated)
+              setResult(null)
+              setCurrentResult(null)
+              runSolve(false)
+            }}
+          />
           <Button onClick={() => { setResult(null); setCurrentResult(null); runSolve(false) }} variant="ghost" className="gap-2">
             <Zap className="h-4 w-4" />
             Re-resolver
@@ -566,6 +587,101 @@ export default function SolvePage() {
         </Card>
       </motion.div>
     </AnimatePresence>
+  )
+}
+
+function ParametersDialog({
+  problem,
+  onResolve,
+}: {
+  problem: ProblemData | null
+  onResolve: (updated: ProblemData) => void
+}) {
+  const [local, setLocal] = useState<ProblemData | null>(null)
+
+  useEffect(() => {
+    setLocal(problem ? JSON.parse(JSON.stringify(problem)) : null)
+  }, [problem])
+
+  if (!local) return null
+
+  const updateObjective = (i: number, v: number) => {
+    const next = { ...local, objective: local.objective.map((c, j) => j === i ? v : c) }
+    setLocal(next)
+  }
+
+  const updateConstraintValue = (i: number, v: number) => {
+    const next = {
+      ...local,
+      constraintsData: local.constraintsData.map((c, j) => j === i ? { ...c, value: v } : c),
+    }
+    setLocal(next)
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger
+        render={<Button variant="outline" className="gap-2" />}
+      >
+        <Settings2 className="h-4 w-4" />
+        Parámetros
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Parámetros del Problema</DialogTitle>
+          <DialogDescription>
+            Modifica coeficientes y recursos del modelo
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-6 py-2 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">Función Objetivo</h4>
+            {local.objective.map((coef, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Label className="w-12 text-sm">X{i + 1}</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={coef}
+                  onChange={(e) => updateObjective(i, Number(e.target.value))}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">Restricciones (RHS)</h4>
+            {local.constraintsData.map((c, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Label className="w-12 text-sm">R{i + 1}</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={c.value}
+                  onChange={(e) => updateConstraintValue(i, Number(e.target.value))}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 pt-2">
+          <DialogTrigger
+            render={<Button variant="outline" />}
+          >
+            Cancelar
+          </DialogTrigger>
+          <DialogTrigger
+            render={
+              <Button onClick={() => onResolve(local)}>
+                Aplicar y Re-resolver
+              </Button>
+            }
+          >
+            Aplicar y Re-resolver
+          </DialogTrigger>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

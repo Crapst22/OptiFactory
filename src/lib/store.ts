@@ -62,3 +62,33 @@ export function setCurrentResult(result: SimplexResult | null) {
 export function getCurrentResult(): SimplexResult | null {
   return currentResult
 }
+
+const STORAGE_KEY = "optifactory-problems"
+
+export function saveProblem(problem: ProblemData): void {
+  if (typeof window === "undefined") return
+  const list = getSavedProblems()
+  const idx = list.findIndex((p) => p.title === problem.title && p.objective === problem.objective)
+  if (idx >= 0) {
+    list[idx] = problem
+  } else {
+    list.push(problem)
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+}
+
+export function getSavedProblems(): ProblemData[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+export function deleteSavedProblem(title: string): void {
+  if (typeof window === "undefined") return
+  const list = getSavedProblems().filter((p) => p.title !== title)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+}

@@ -4,15 +4,11 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
-  GraduationCap,
   PlusCircle,
-  Sliders,
   Play,
   BookOpen,
   History,
   Settings,
-  GitCompare,
-  BarChart3,
   Brain,
   SplitSquareVertical,
   Lightbulb,
@@ -30,7 +26,6 @@ const navItems = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/problems/new", label: "Nuevo Problema", icon: PlusCircle },
   { href: "/problems", label: "Problemas", icon: Brain },
-  { href: "/parameters", label: "Parámetros", icon: Sliders },
   { href: "/solve", label: "Resolver", icon: Play },
   { href: "/scenarios", label: "Escenarios", icon: SplitSquareVertical },
   { href: "/exercises", label: "Biblioteca", icon: BookOpen },
