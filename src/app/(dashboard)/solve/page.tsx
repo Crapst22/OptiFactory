@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Play, StepForward, GitCompare, Zap } from "lucide-react"
+import { Play, StepForward, GitCompare, Zap, BarChart3, TrendingUp } from "lucide-react"
 import { solveProblem } from "@/services/simplex"
 import { getCurrentProblem, setCurrentResult } from "@/lib/store"
 import type { SimplexResult, SimplexStep, SimplexTable, ProblemData } from "@/types"
@@ -181,6 +181,24 @@ export default function SolvePage() {
                 </p>
               </CardContent>
             </Card>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => router.push("/results")}
+                className="gap-2"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Ver Resultados Detallados
+              </Button>
+              <Button
+                onClick={() => router.push("/sensitivity")}
+                variant="secondary"
+                className="gap-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                Análisis de Sensibilidad
+              </Button>
+            </div>
 
             {result.variables && result.variables.length > 0 && (
               <Card>

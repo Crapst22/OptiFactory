@@ -28,13 +28,10 @@ import { ViewModeToggle } from "@/components/shared/view-mode-toggle"
 
 const navItems = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
-  { href: "/tutorial", label: "Tutorial", icon: GraduationCap },
   { href: "/problems/new", label: "Nuevo Problema", icon: PlusCircle },
   { href: "/problems", label: "Problemas", icon: Brain },
   { href: "/parameters", label: "Parámetros", icon: Sliders },
   { href: "/solve", label: "Resolver", icon: Play },
-  { href: "/results", label: "Resultados", icon: BarChart3 },
-  { href: "/sensitivity", label: "Sensibilidad", icon: GitCompare },
   { href: "/scenarios", label: "Escenarios", icon: SplitSquareVertical },
   { href: "/exercises", label: "Biblioteca", icon: BookOpen },
   { href: "/exercises/generator", label: "Generador", icon: FlaskConical },
