@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -187,9 +188,24 @@ export default function SensitivityPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Variable</TableHead>
-                  <TableHead>Valor Actual</TableHead>
-                  <TableHead>Disminución Permisible</TableHead>
-                  <TableHead>Aumento Permisible</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Valor Actual
+                      <InfoTooltip text="El valor que tiene actualmente el coeficiente de la variable en la función objetivo." />
+                    </span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Disminución Permisible
+                      <InfoTooltip text="Cuánto puede bajar el valor de la variable sin que cambie la solución óptima." />
+                    </span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Aumento Permisible
+                      <InfoTooltip text="Cuánto puede aumentar el valor de la variable sin cambiar la solución óptima." />
+                    </span>
+                  </TableHead>
                   <TableHead>Rango</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
@@ -250,11 +266,31 @@ export default function SensitivityPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Restricción</TableHead>
-                  <TableHead>Valor Actual (RHS)</TableHead>
-                  <TableHead>Disminución Permisible</TableHead>
-                  <TableHead>Aumento Permisible</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Valor Actual (RHS)
+                      <InfoTooltip text="El valor actual del lado derecho de la restricción (recurso disponible)." />
+                    </span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Disminución Permisible
+                      <InfoTooltip text="Cuánto puede disminuir el RHS sin cambiar la base óptima." />
+                    </span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Aumento Permisible
+                      <InfoTooltip text="Cuánto puede aumentar el RHS sin cambiar la base óptima." />
+                    </span>
+                  </TableHead>
                   <TableHead>Rango</TableHead>
-                  <TableHead>Precio Sombra</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Precio Sombra
+                      <InfoTooltip text="Cambio en el valor óptimo por unidad adicional de este recurso." />
+                    </span>
+                  </TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
