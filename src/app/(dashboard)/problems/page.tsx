@@ -33,8 +33,8 @@ export default function ProblemsPage() {
     router.push("/solve?solve=1")
   }
 
-  const handleDelete = (title: string) => {
-    deleteSavedProblem(title)
+  const handleDelete = (id: string) => {
+    deleteSavedProblem(id)
     setProblems(getSavedProblems())
   }
 
@@ -140,7 +140,7 @@ export default function ProblemsPage() {
                     <Play className="size-3" />
                     Resolver
                   </Button>
-                  <Button size="sm" variant="outline" className="gap-2" onClick={() => handleDelete(p.title)}>
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => handleDelete(p.id!)}>
                     <Trash2 className="size-3 text-red-500" />
                   </Button>
                 </div>

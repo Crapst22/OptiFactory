@@ -6,6 +6,7 @@ export type Operator = "<=" | ">=" | "="
 export type ViewMode = "student" | "professional"
 
 export interface ProblemData {
+  id?: string
   title: string
   problemType: ProblemType
   method: SolveMethod

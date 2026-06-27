@@ -140,7 +140,7 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {recentProblems.map((p, i) => {
-                  const saved = localStorage.getItem(`${STORAGE_RESULTS_KEY}-${p.title}`)
+                  const saved = localStorage.getItem(`${STORAGE_RESULTS_KEY}-${p.id}`)
                   let result = null
                   try { result = saved ? JSON.parse(saved) : null } catch {}
                   return (

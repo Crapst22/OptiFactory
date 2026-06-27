@@ -65,14 +65,19 @@ export function getCurrentResult(): SimplexResult | null {
 
 const STORAGE_KEY = "optifactory-problems"
 
+function ensureId(p: ProblemData): ProblemData {
+  return p.id ? p : { ...p, id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}` }
+}
+
 export function saveProblem(problem: ProblemData): void {
   if (typeof window === "undefined") return
+  const withId = ensureId(problem)
   const list = getSavedProblems()
-  const idx = list.findIndex((p) => p.title === problem.title && p.objective === problem.objective)
+  const idx = list.findIndex((p) => p.id === withId.id)
   if (idx >= 0) {
-    list[idx] = problem
+    list[idx] = withId
   } else {
-    list.push(problem)
+    list.push(withId)
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 }
@@ -81,15 +86,22 @@ export function getSavedProblems(): ProblemData[] {
   if (typeof window === "undefined") return []
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
+    const list: ProblemData[] = raw ? JSON.parse(raw) : []
+    // migrate any problems without id
+    const migrated = list.map((p) => ensureId(p))
+    const hasMigrated = migrated.some((p, i) => p.id !== list[i]?.id)
+    if (hasMigrated) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated))
+    }
+    return migrated
   } catch {
     return []
   }
 }
 
-export function deleteSavedProblem(title: string): void {
+export function deleteSavedProblem(id: string): void {
   if (typeof window === "undefined") return
-  const list = getSavedProblems().filter((p) => p.title !== title)
+  const list = getSavedProblems().filter((p) => p.id !== id)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 }
 
