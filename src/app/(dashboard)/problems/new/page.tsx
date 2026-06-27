@@ -142,12 +142,6 @@ export default function NewProblemPage() {
               </RadioGroup>
             </div>
 
-            <div className="space-y-3">
-              <Label>Método de resolución</Label>
-              <div className="h-10 px-3 rounded-md border bg-muted flex items-center text-sm text-muted-foreground">
-                Automático (detección según el problema)
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

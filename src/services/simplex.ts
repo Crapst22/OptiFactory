@@ -122,11 +122,9 @@ function buildInitialTableau(
     artificialIdx = 0
     for (let i = 0; i < numConstraints; i++) {
       if (signs[i] === ">=" || signs[i] === "=") {
-        const col = numVars + numConstraints + artificialIdx
-        for (let r = 0; r < numConstraints; r++) {
-          zRow[col] -= bigMpenalty * tableau[r][col]
+        for (let j = 0; j < totalCols; j++) {
+          zRow[j] -= bigMpenalty * tableau[i][j]
         }
-        zRow[totalCols - 1] -= bigMpenalty * tableau[i][totalCols - 1]
         artificialIdx++
       }
     }
@@ -137,17 +135,24 @@ function buildInitialTableau(
   return { tableau, basis, headers, artificialVariables: artificialCount, bigMpenalty }
 }
 
-function findPivotColumn(zRow: number[], method: SolveMethod): number {
+function findPivotColumn(zRow: number[], headers: string[]): number {
   let minVal = 0
   let pivotCol = -1
+  let nonArtificialPivotCol = -1
+  let nonArtificialMinVal = 0
   for (let j = 0; j < zRow.length - 1; j++) {
     if (zRow[j] < -EPSILON) {
       if (pivotCol === -1 || zRow[j] < minVal) {
         minVal = zRow[j]
         pivotCol = j
       }
+      if (!headers[j].startsWith("A") && (nonArtificialPivotCol === -1 || zRow[j] < nonArtificialMinVal)) {
+        nonArtificialMinVal = zRow[j]
+        nonArtificialPivotCol = j
+      }
     }
   }
+  if (nonArtificialPivotCol !== -1) return nonArtificialPivotCol
   return pivotCol
 }
 
@@ -276,7 +281,7 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
 
   while (iteration < maxIterations) {
     const zRow = tableau[tableau.length - 1]
-    const pivotCol = findPivotColumn(zRow, problem.method)
+    const pivotCol = findPivotColumn(zRow, headers)
     const currentTable: SimplexTable = {
       headers,
       rows: tableau.slice(0, -1),
@@ -666,8 +671,13 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         }
       }
 
-      allowIncrease = maxInc
-      allowDecrease = maxDec
+      if (isMaximization) {
+        allowIncrease = maxInc
+        allowDecrease = maxDec
+      } else {
+        allowIncrease = maxDec
+        allowDecrease = maxInc
+      }
     } else {
       if (isMaximization) {
         allowIncrease = zRow[colIdx]
