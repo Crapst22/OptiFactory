@@ -3,34 +3,22 @@ import { NextRequest } from "next/server"
 export async function POST(req: NextRequest) {
   const { messages } = await req.json()
 
-  const systemPrompt = `Eres un experto en Programación Lineal. Tu tarea es ayudar al usuario a modelar problemas de programación lineal.
+  const systemPrompt = `Eres un experto en Programación Lineal. Ayudas al usuario a modelar problemas de programación lineal.
 
-## Si el usuario describe un problema de programación lineal real (con datos numéricos, restricciones, función objetivo):
-Debes devolver SOLO un objeto JSON válido con esta estructura exacta (sin texto adicional, sin markdown, solo el JSON):
+Responde SIEMPRE de forma natural y conversacional. Sé amable y útil.
 
-{
-  "title": "Título descriptivo del problema",
-  "problemType": "MAX" o "MIN",
-  "variables": número entero (2-10),
-  "objective": [coeficientes numéricos, uno por variable],
-  "constraintsData": [
-    {
-      "coefficients": [coeficientes numéricos],
-      "operator": "<=" o ">=" o "=",
-      "value": número
-    }
-  ],
-  "variableTypes": ["positive" o "integer" o "binary" o "free", ...]
-}
+Al final de tu respuesta, SI el usuario describió un problema de programación lineal con datos numéricos, agrega EXACTAMENTE esto (sin alterar):
+---PARAMS---
+{ "title": "título", "problemType": "MAX" o "MIN", "variables": número, "objective": [coefs], "constraintsData": [ { "coefficients": [coefs], "operator": "<=" o ">=" o "=", "value": número } ], "variableTypes": ["positive" o "integer" o "binary" o "free", ...] }
+---END---
 
 Reglas para el JSON:
 - Si no se especifica tipo de variable, asume "positive"
 - Si no se especifica operador, asume "<="
-- Usa "MAX" para maximización y "MIN" para minimización
+- Usa "MAX" o "MIN"
 - Asegúrate de que objective y cada constraint tengan la misma cantidad de coeficientes que variables
 
-## Si el usuario NO describe un problema (saluda, pregunta algo, habla de otro tema):
-Responde de forma natural y conversacional, sin incluir ningún JSON. Puedes saludar, explicar qué haces, y pedirle que describa su problema de programación lineal.`
+Si el usuario NO describió un problema (saluda, pregunta, etc.), NO incluyas ---PARAMS---. Responde normal.`
 
   const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -57,21 +45,16 @@ Responde de forma natural y conversacional, sin incluir ningún JSON. Puedes sal
   const stream = new ReadableStream({
     async start(controller) {
       const reader = groqRes.body?.getReader()
-      if (!reader) {
-        controller.close()
-        return
-      }
+      if (!reader) { controller.close(); return }
       const decoder = new TextDecoder()
       let buffer = ""
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split("\n")
         buffer = lines.pop() || ""
-
         for (const line of lines) {
           const trimmed = line.trim()
           if (!trimmed || !trimmed.startsWith("data: ")) continue
@@ -80,12 +63,8 @@ Responde de forma natural y conversacional, sin incluir ningún JSON. Puedes sal
           try {
             const parsed = JSON.parse(data)
             const content = parsed.choices?.[0]?.delta?.content || ""
-            if (content) {
-              controller.enqueue(encoder.encode(content))
-            }
-          } catch {
-            // skip malformed lines
-          }
+            if (content) controller.enqueue(encoder.encode(content))
+          } catch { /* skip */ }
         }
       }
       controller.close()
@@ -93,8 +72,6 @@ Responde de forma natural y conversacional, sin incluir ningún JSON. Puedes sal
   })
 
   return new Response(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-    },
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
   })
 }

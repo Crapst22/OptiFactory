@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, Send, Sparkles, Bot, User, CheckCircle2 } from "lucide-react"
 import { sendMessage, extractProblemFromResponse, ChatMessage } from "@/services/ollama"
 import { ProblemData } from "@/types"
@@ -42,20 +41,20 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
     setLoading(true)
 
     const allMessages = [...messages, userMessage]
-    let fullContent = ""
+    let rawContent = ""
 
     try {
-      fullContent = await sendMessage(allMessages, (token) => {
+      rawContent = await sendMessage(allMessages, (token) => {
         setStreamingText((prev) => prev + token)
       })
 
-      const extracted = extractProblemFromResponse(fullContent)
-      if (extracted) {
-        setParsedProblem(extracted)
+      const { displayText, problem } = extractProblemFromResponse(rawContent)
+      if (problem) {
+        setParsedProblem(problem)
       }
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: fullContent },
+        { role: "assistant", content: displayText },
       ])
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error desconocido"
@@ -74,13 +73,13 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center gap-2 px-4 py-3 border-b">
+      <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
         <Bot className="size-5 text-primary" />
         <span className="font-semibold">Asistente IA</span>
         <span className="text-xs text-muted-foreground ml-auto">Groq · Llama 3.3 70B</span>
       </div>
 
-      <ScrollArea className="flex-1 p-4">
+      <div className="flex-1 overflow-y-auto p-4 min-h-0">
         <div className="space-y-4">
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
@@ -120,10 +119,10 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
 
           <div ref={bottomRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       {parsedProblem && (
-        <div className="px-4 py-3 border-t bg-muted/50">
+        <div className="px-4 py-3 border-t bg-muted/50 shrink-0">
           <div className="flex items-start gap-2">
             <CheckCircle2 className="size-5 text-green-500 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
@@ -149,7 +148,7 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
         </div>
       )}
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t shrink-0">
         <form
           onSubmit={(e) => {
             e.preventDefault()
