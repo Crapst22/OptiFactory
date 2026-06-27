@@ -241,6 +241,8 @@ function extractResult(
       "Se ha encontrado la solución óptima. No es posible mejorar el valor de la función objetivo respetando todas las restricciones."
   }
 
+  const pivotCount = steps.filter(s => !s.isOptimal).length
+
   return {
     optimal: status === "OPTIMAL",
     optimalValue: Math.round(optimalValue * 1e6) / 1e6,
@@ -248,7 +250,7 @@ function extractResult(
     slackVariables,
     steps,
     method: "SIMPLEX",
-    iterations: steps.length,
+    iterations: Math.max(1, pivotCount),
     status,
     statusExplanation,
     timeMs: 0,
@@ -313,7 +315,7 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
         slackVariables: {},
         steps,
         method: "SIMPLEX",
-        iterations: steps.length,
+        iterations: Math.max(1, steps.filter(s => !s.isOptimal).length),
         status: "UNBOUNDED",
         statusExplanation:
           "El problema no está acotado. La función objetivo puede aumentar indefinidamente sin violar restricciones.",
@@ -575,9 +577,6 @@ export function autoDetectMethod(problem: ProblemData): SolveMethod {
 
   if (hasIntegerVars) {
     return "INTEGER_PROGRAMMING"
-  }
-  if (problem.variables === 2 && problem.constraints <= 5) {
-    return "GRAPHICAL"
   }
   if (hasGreaterEqual || hasEquality) {
     return "BIG_M"

@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { useProblem } from "@/hooks/use-problem"
 import { setCurrentProblem, setCurrentResult, saveProblem } from "@/lib/store"
 import { solveProblem } from "@/services/simplex"
-import { ProblemType, SolveMethod, VariableType, ConstraintRow } from "@/types"
+import { ProblemType, VariableType, ConstraintRow } from "@/types"
 import { Plus, Trash2, Copy, ArrowRight, Calculator, Brain, Sparkles } from "lucide-react"
 import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
@@ -29,7 +29,6 @@ export default function NewProblemPage() {
     problem,
     setTitle,
     setProblemType,
-    setMethod,
     setVariables,
     setConstraints,
     setObjective,
@@ -145,23 +144,9 @@ export default function NewProblemPage() {
 
             <div className="space-y-3">
               <Label>Método de resolución</Label>
-              <Select
-                value={problem.method}
-                onValueChange={(v: string | null) => v && setMethod(v as SolveMethod)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AUTO">Automático</SelectItem>
-                  <SelectItem value="GRAPHICAL">Método Gráfico</SelectItem>
-                  <SelectItem value="SIMPLEX">Simplex</SelectItem>
-                  <SelectItem value="INTEGER_PROGRAMMING">Programación Lineal Entera</SelectItem>
-                  <SelectItem value="DUAL_SIMPLEX">Dual Simplex</SelectItem>
-                  <SelectItem value="BIG_M">Big M</SelectItem>
-                  <SelectItem value="TWO_PHASE">Dos Fases</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="h-10 px-3 rounded-md border bg-muted flex items-center text-sm text-muted-foreground">
+                Automático (detección según el problema)
+              </div>
             </div>
           </div>
 
