@@ -610,7 +610,7 @@ export function solveProblem(problem: ProblemData): SimplexResult {
     result = solveSimplex({ ...problem, method })
   }
 
-  result.method = method
+  result.method = method === "INTEGER_PROGRAMMING" ? "INTEGER_PROGRAMMING" : "SIMPLEX"
   return result
 }
 
