@@ -42,7 +42,8 @@ export async function sendMessage(
 }
 
 export function extractProblemFromResponse(text: string): { displayText: string; problem: Partial<ProblemData> | null } {
-  const paramsMatch = text.match(/---PARAMS---\s*(\{[\s\S]*?\})\s*---END---/)
+  // Match ---PARAMS--- or ---\nPARAMS--- or ---PARAMS--- (flexible)
+  const paramsMatch = text.match(/---\s*PARAMS---\s*(\{[\s\S]*?\})\s*---END---/)
   if (!paramsMatch) {
     return { displayText: text, problem: null }
   }
