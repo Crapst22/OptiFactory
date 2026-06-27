@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   title: "OptiFactory - Optimización de Operaciones",
   description:
     "Plataforma educativa moderna para modelar, resolver, comprender y analizar problemas de Programación Lineal",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 }
 
 export default function RootLayout({
