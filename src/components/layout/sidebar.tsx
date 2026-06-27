@@ -9,7 +9,6 @@ import {
   BookOpen,
   Settings,
   Brain,
-  FileDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -24,7 +23,6 @@ const navItems = [
   { href: "/problems", label: "Problemas", icon: Brain },
   { href: "/solve", label: "Resultados", icon: Play },
   { href: "/exercises", label: "Biblioteca", icon: BookOpen },
-  { href: "/export", label: "Exportar", icon: FileDown },
   { href: "/settings", label: "Configuración", icon: Settings },
 ]
 
