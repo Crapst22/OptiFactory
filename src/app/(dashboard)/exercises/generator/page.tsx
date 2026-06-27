@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import { motion } from "framer-motion"
 import {
   Card,
@@ -16,8 +16,9 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { FlaskConical, Shuffle, Play, ArrowRight, Eye, EyeOff, Save, BookOpen } from "lucide-react"
 import { generateExercise, solveProblem } from "@/services/simplex"
+import { generateScenario } from "@/services/scenarios"
 import { setCurrentProblem, saveExercise } from "@/lib/store"
-import type { ProblemData, SimplexResult, Difficulty, Operator, ConstraintRow, Exercise } from "@/types"
+import type { ProblemData, SimplexResult, Difficulty, Exercise } from "@/types"
 
 const difficultyOptions = [
   { value: "BEGINNER" as Difficulty, label: "Principiante" },
@@ -30,60 +31,7 @@ const typeOptions = [
   { value: "MIN", label: "Minimización" },
 ] as const
 
-const productNames = ["Mesa", "Silla", "Estante", "Armario", "Cama"]
-const resourceNames = [
-  "madera (m²)",
-  "metal (kg)",
-  "plástico (kg)",
-  "tela (m)",
-  "vidrio (m²)",
-  "pintura (L)",
-  "cartón (kg)",
-  "caucho (kg)",
-]
-
-function generateEnunciado(problem: ProblemData, difficulty: Difficulty): string {
-  const products = productNames.slice(0, problem.variables)
-  const resourceCount = Math.min(problem.constraints, resourceNames.length)
-  const resources = resourceNames.slice(0, resourceCount)
-  const companyType = problem.problemType === "MAX" ? "ganancias" : "costos"
-  const goal = problem.problemType === "MAX" ? "maximizar" : "minimizar"
-
-  const productList = products.map((p) => `"${p}"`).join(", ")
-  const lastComma = productList.lastIndexOf(", ")
-  const productStr = productList.substring(0, lastComma) + " y " + productList.substring(lastComma + 2)
-
-  let text = `Una empresa fabrica ${problem.variables} productos diferentes: ${productStr}. `
-  text += `Cada producto requiere ciertas cantidades de recursos limitados. `
-  text += `El objetivo es ${goal} las ${companyType} totales de la producción.`
-
-  if (problem.problemType === "MAX") {
-    text += `\n\nLas ganancias por unidad de cada producto son: `
-    text += products.map((p, i) => `${p}: $${problem.objective[i]}`).join(", ") + "."
-  } else {
-    text += `\n\nLos costos por unidad de cada producto son: `
-    text += products.map((p, i) => `${p}: $${problem.objective[i]}`).join(", ") + "."
-  }
-
-  text += `\n\nLa producción está sujeta a las siguientes restricciones de recursos:`
-  for (let i = 0; i < resourceCount; i++) {
-    const row = problem.constraintsData[i]
-    const terms = products
-      .map((p, j) => `${row.coefficients[j]} unidades de ${p}`)
-      .join(" + ")
-    const opLabel = row.operator === "<=" ? "no puede exceder" : row.operator === ">=" ? "debe ser al menos" : "debe ser exactamente"
-    text += `\n- ${terms} ${opLabel} ${row.value} unidades de ${resources[i]}.`
-  }
-
-  for (let i = 0; i < problem.variables; i++) {
-    text += `\n- La cantidad de ${products[i]} producida no puede ser negativa.`
-  }
-
-  text += `\n\nDetermine la combinación de producción óptima que ${goal} las ${companyType} totales.`
-  return text
-}
-
-function buildExercise(problem: ProblemData, difficulty: Difficulty, result?: SimplexResult | null): Exercise {
+function buildExercise(problem: ProblemData, difficulty: Difficulty, narrative: string, result?: SimplexResult | null): Exercise {
   const resultText = result
     ? Object.entries(result.variables)
         .map(([k, v]) => `${k} = ${formatNumber(v)}`)
@@ -95,8 +43,8 @@ function buildExercise(problem: ProblemData, difficulty: Difficulty, result?: Si
 
   return {
     id: `generated-${Date.now()}`,
-    title: `Ejercicio: ${difficultyOptions.find((d) => d.value === difficulty)?.label ?? difficulty}`,
-    description: generateEnunciado(problem, difficulty),
+    title: problem.title,
+    description: narrative,
     difficulty,
     problemType: problem.problemType,
     objective: problem.objective,
@@ -136,6 +84,7 @@ export default function GeneratorPage() {
   const [difficulty, setDifficulty] = useState<Difficulty>("BEGINNER")
   const [problemType, setProblemType] = useState<"MAX" | "MIN">("MAX")
   const [generated, setGenerated] = useState<ProblemData | null>(null)
+  const [narrative, setNarrative] = useState<string>("")
   const [result, setResult] = useState<SimplexResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [solving, setSolving] = useState(false)
@@ -149,9 +98,16 @@ export default function GeneratorPage() {
     setShowParams(false)
     setSaved(false)
     try {
-      const problem = generateExercise(variables, constraints, difficulty)
-      const typed = { ...problem, problemType, title: "Ejercicio Generado" }
-      setGenerated(typed)
+      if (enunciadoMode) {
+        const scenario = generateScenario(variables, constraints, difficulty, problemType)
+        setGenerated(scenario.problem)
+        setNarrative(scenario.narrative)
+      } else {
+        const problem = generateExercise(variables, constraints, difficulty)
+        const typed = { ...problem, problemType, title: "Ejercicio Generado" }
+        setGenerated(typed)
+        setNarrative("")
+      }
     } finally {
       setLoading(false)
     }
@@ -175,15 +131,11 @@ export default function GeneratorPage() {
 
   function handleSaveToLibrary() {
     if (!generated) return
-    const exercise = buildExercise(generated, difficulty, result)
+    const desc = enunciadoMode && narrative ? narrative : `Ejercicio de ${problemType === "MAX" ? "maximización" : "minimización"} con ${generated.variables} variables y ${generated.constraints} restricciones.`
+    const exercise = buildExercise(generated, difficulty, desc, result)
     saveExercise(exercise)
     setSaved(true)
   }
-
-  const enunciado = useCallback(() => {
-    if (!generated) return ""
-    return generateEnunciado(generated, difficulty)
-  }, [generated, difficulty])
 
   return (
     <motion.div
@@ -310,7 +262,7 @@ export default function GeneratorPage() {
             <div className="space-y-0.5">
               <Label className="text-sm font-medium">Modo Enunciado</Label>
               <p className="text-xs text-muted-foreground">
-                Genera un enunciado descriptivo en lugar del modelo matemático directo
+                Genera un escenario empresarial realista en lugar del modelo matemático directo
               </p>
             </div>
             <button
@@ -365,14 +317,15 @@ export default function GeneratorPage() {
                     &middot;{" "}
                     {typeOptions.find((t) => t.value === problemType)?.label ??
                       problemType}
+                    &middot; {generated.title}
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {enunciadoMode && (
-                <div className="rounded-lg bg-muted/50 p-4 text-sm leading-relaxed whitespace-pre-wrap">
-                  {enunciado()}
+              {enunciadoMode && narrative && (
+                <div className="rounded-lg bg-muted/50 p-5 text-sm leading-relaxed whitespace-pre-wrap border">
+                  {narrative}
                 </div>
               )}
 
