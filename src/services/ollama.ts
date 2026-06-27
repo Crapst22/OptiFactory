@@ -49,8 +49,16 @@ export function extractProblemFromResponse(text: string): { displayText: string;
 
   const displayText = text.replace(/---PARAMS---[\s\S]*?---END---/, "").trim()
 
+  // Normalize the JSON before parsing: replace expressions like 1/12 with evaluated decimals
+  let jsonStr = paramsMatch[1]
+    // Replace "number/number" with evaluated float (e.g. 1/12 → 0.083333)
+    .replace(/(\d+)\s*\/\s*(\d+)/g, (_m, a, b) => String(Number(a) / Number(b)))
+    // Remove $ and commas from numbers
+    .replace(/\$(\d+)/g, "$1")
+    .replace(/(\d),(\d{3})/g, "$1$2")
+
   try {
-    const data = JSON.parse(paramsMatch[1])
+    const data = JSON.parse(jsonStr)
 
     const vars = Math.max(2, Math.min(10, data.variables || 2))
     const cons = data.constraintsData?.length || 2

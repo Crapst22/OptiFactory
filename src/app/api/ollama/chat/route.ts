@@ -12,13 +12,16 @@ Cuando el usuario describa un problema CON DATOS NUMÉRICOS, responde con tu an�
 { "title": "Título", "problemType": "MAX o MIN", "variables": 2, "objective": [10, 20], "constraintsData": [ { "coefficients": [1, 2], "operator": "<=", "value": 100 } ], "variableTypes": ["positive", "positive"] }
 ---END---
 
-Reglas del JSON:
-- objective: un número por variable (sin $, sin comas, sin separadores)
-- constraintsData: cada restricción tiene coefficients (misma cantidad que variables), operator ("<=", ">=", "="), value (número)
-- variableTypes: uno por variable, default "positive"
-- Convierte fracciones a decimales (ej: 1/12 → 0.0833)
-- Convierte relaciones como "25 por cada 60" a coeficientes: -0.4167, 0, 1 con operator ">="
-- Convierte cantidades con $ o separadores a números planos (ej: $22.000 → 22000)
+IMPORTANTE — El JSON solo acepta números, NO expresiones:
+- MAL: 1/12 → BIEN: 0.0833
+- MAL: 25/60 → BIEN: 0.4167
+- MAL: $22.000 → BIEN: 22000
+- MAL: 68*500 → BIEN: 34000
+
+Reglas:
+- objective: un número por variable, sin $, sin comas, sin separadores
+- constraintsData coefficients: solo números decimales, sin fracciones
+- Convierte "25 por cada 60" a: [-0.4167, 0, 1] con operator ">=" o [0.4167, 0, -1] con operator "<="
 
 SOLO agrega ---PARAMS--- si el usuario dio datos de un problema. Si saluda o pregunta algo, responde normal sin ---PARAMS---.`
 
