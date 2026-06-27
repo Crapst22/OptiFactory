@@ -50,7 +50,7 @@ export default function DashboardPage() {
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="max-w-6xl mx-auto space-y-8">
       <motion.div variants={item}>
-        <h1 className="text-3xl font-bold tracking-tight">OptiFactory</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Learn IO</h1>
         <p className="text-muted-foreground mt-1">
           Plataforma de optimización de operaciones y programación lineal
         </p>

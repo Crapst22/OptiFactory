@@ -70,7 +70,7 @@ export default function SettingsPage() {
       <motion.div variants={item}>
         <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
         <p className="text-muted-foreground mt-1">
-          Personaliza tu experiencia en OptiFactory
+          Personaliza tu experiencia en Learn IO
         </p>
       </motion.div>
 

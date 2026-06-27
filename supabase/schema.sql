@@ -1,5 +1,5 @@
 -- =============================================
--- OptiFactory - Schema para Supabase
+-- Learn IO - Schema para Supabase
 -- Ejecutar en: Supabase > SQL Editor
 -- =============================================
 

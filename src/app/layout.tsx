@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "OptiFactory - Optimización de Operaciones",
+  title: "Learn IO - Optimización de Operaciones",
   description:
     "Plataforma educativa moderna para modelar, resolver, comprender y analizar problemas de Programación Lineal",
   icons: {

@@ -33,9 +33,9 @@ export function Sidebar() {
       <div className="px-3 py-3 border-b">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="size-9 overflow-hidden flex-shrink-0">
-            <Image src="/logo.png" alt="OptiFactory" width={36} height={36} className="object-contain" />
+            <Image src="/logo.png" alt="Learn IO" width={36} height={36} className="object-contain" />
           </div>
-          <span className="font-semibold text-xl leading-none">OptiFactory</span>
+          <span className="font-semibold text-xl leading-none">Learn IO</span>
         </Link>
       </div>
       <ScrollArea className="flex-1 py-1">
@@ -81,7 +81,7 @@ export function MobileNav() {
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0">
         <div className="p-4 border-b">
-          <span className="font-semibold text-lg">OptiFactory</span>
+          <span className="font-semibold text-lg">Learn IO</span>
         </div>
         <ScrollArea className="flex-1 py-2">
           <nav className="space-y-1 px-3">
