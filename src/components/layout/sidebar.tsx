@@ -32,10 +32,10 @@ export function Sidebar() {
     <aside className="hidden md:flex md:w-40 lg:w-44 flex-col border-r bg-card">
       <div className="px-3 py-3 border-b">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="size-7 overflow-hidden">
-            <Image src="/logo.png" alt="OptiFactory" width={28} height={28} className="object-contain" />
+          <div className="size-9 overflow-hidden flex-shrink-0">
+            <Image src="/logo.png" alt="OptiFactory" width={36} height={36} className="object-contain" />
           </div>
-          <span className="font-semibold text-base">OptiFactory</span>
+          <span className="font-semibold text-xl leading-none">OptiFactory</span>
         </Link>
       </div>
       <ScrollArea className="flex-1 py-1">
