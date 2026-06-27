@@ -611,27 +611,122 @@ export function solveProblem(problem: ProblemData): SimplexResult {
 }
 
 export function calculateSensitivity(result: SimplexResult, problem: ProblemData): SensitivityAnalysis {
-  const varNames = generateVariableNames(problem.variables)
-  const slackNames = generateSlackNames(problem.variables, problem.constraints)
+  const lastStep = result.steps[result.steps.length - 1]
+  if (!lastStep || !lastStep.isOptimal) {
+    throw new Error("Se requiere una solución óptima para el análisis de sensibilidad.")
+  }
 
-  const objCoeffs: SensitivityCoefficient[] = varNames.map((v, i) => ({
-    variable: v,
-    currentValue: problem.objective[i] || 0,
-    allowIncrease: 1000,
-    allowDecrease: 1000,
-    isBasic: (result.variables[v] || 0) > 0 || false,
-  }))
+  const { table } = lastStep
+  const { headers, rows, zRow, basis, solution } = table
+
+  const numVars = problem.variables
+  const numConstraints = problem.constraints
+  const isMaximization = problem.problemType === "MAX"
+  const varNames = generateVariableNames(numVars)
+  const slackNames = generateSlackNames(numVars, numConstraints)
+
+  const basicColIndices = new Set<number>()
+  for (const bv of basis) {
+    const idx = headers.indexOf(bv)
+    if (idx !== -1) basicColIndices.add(idx)
+  }
+
+  const objCoeffs: SensitivityCoefficient[] = []
+
+  for (let v = 0; v < numVars; v++) {
+    const varName = varNames[v]
+    const colIdx = headers.indexOf(varName)
+    if (colIdx === -1) continue
+
+    const currentValue = problem.objective[v]
+    const isBasic = basicColIndices.has(colIdx)
+
+    let allowIncrease: number
+    let allowDecrease: number
+
+    if (isBasic) {
+      const rowIdx = basis.indexOf(varName)
+      let maxInc = Infinity
+      let maxDec = Infinity
+
+      for (let j = 0; j < headers.length - 1; j++) {
+        if (basicColIndices.has(j)) continue
+        if (headers[j].startsWith("A")) continue
+
+        const y_rj = rows[rowIdx][j]
+        const rc = zRow[j]
+
+        if (isZero(y_rj) || isZero(rc)) continue
+
+        if (y_rj > EPSILON) {
+          const bound = rc / y_rj
+          if (bound < maxDec) maxDec = bound
+        } else {
+          const bound = rc / (-y_rj)
+          if (bound < maxInc) maxInc = bound
+        }
+      }
+
+      allowIncrease = maxInc
+      allowDecrease = maxDec
+    } else {
+      if (isMaximization) {
+        allowIncrease = zRow[colIdx]
+        allowDecrease = Infinity
+      } else {
+        allowIncrease = Infinity
+        allowDecrease = zRow[colIdx]
+      }
+    }
+
+    objCoeffs.push({
+      variable: varName,
+      currentValue,
+      allowIncrease,
+      allowDecrease,
+      isBasic,
+    })
+  }
 
   const constraintValues: SensitivityConstraint[] = []
-  for (let i = 0; i < problem.constraints; i++) {
-    const slackVal = result.slackVariables[slackNames[i]] || 0
+
+  for (let i = 0; i < numConstraints; i++) {
+    const slackCol = headers.indexOf(slackNames[i])
+    if (slackCol === -1) continue
+
+    const currentValue = problem.constraintsData[i]?.value || 0
+    const isBinding = !basicColIndices.has(slackCol)
+
+    let allowIncrease = Infinity
+    let allowDecrease = Infinity
+
+    for (let r = 0; r < rows.length; r++) {
+      const bInv_ri = rows[r][slackCol]
+      const xB_r = solution[r]
+
+      if (isZero(bInv_ri)) continue
+
+      if (bInv_ri > EPSILON) {
+        const bound = xB_r / bInv_ri
+        if (bound < allowDecrease) allowDecrease = bound
+      } else {
+        const bound = xB_r / (-bInv_ri)
+        if (bound < allowIncrease) allowIncrease = bound
+      }
+    }
+
+    let dualPrice = zRow[slackCol]
+    if (!isMaximization) {
+      dualPrice = -dualPrice
+    }
+
     constraintValues.push({
       constraint: `Restricción ${i + 1}`,
-      currentValue: problem.constraintsData[i]?.value || 0,
-      allowIncrease: slackVal > 0 ? slackVal : 100,
-      allowDecrease: 100,
-      dualPrice: slackVal === 0 ? Math.round(Math.random() * 100) / 10 : 0,
-      isBinding: slackVal === 0,
+      currentValue,
+      allowIncrease,
+      allowDecrease,
+      dualPrice,
+      isBinding,
     })
   }
 
@@ -642,7 +737,7 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
     constraintValues,
     bindingConstraints,
     slackValues: result.slackVariables,
-    dualPrices: {},
+    dualPrices: Object.fromEntries(constraintValues.map(c => [c.constraint, c.dualPrice])),
   }
 }
 

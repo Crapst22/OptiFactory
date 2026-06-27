@@ -56,7 +56,10 @@ const item = {
 }
 
 function formatNum(v: number): string {
-  return Math.abs(v) < 1e-10 ? "0" : Number.isInteger(v) ? v.toString() : v.toFixed(4)
+  if (!isFinite(v)) return v > 0 ? "∞" : "-∞"
+  if (Math.abs(v) < 1e-10) return "0"
+  if (Number.isInteger(v)) return v.toString()
+  return v.toFixed(4)
 }
 
 export default function SensitivityPage() {
