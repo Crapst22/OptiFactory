@@ -121,6 +121,7 @@ export interface Exercise {
   constraints: ConstraintRow[]
   solution: { values: string; optimalZ: string }
   steps: string[]
+  isEnunciado?: boolean
 }
 
 export interface PlotPoint {

@@ -31,7 +31,7 @@ const typeOptions = [
   { value: "MIN", label: "Minimización" },
 ] as const
 
-function buildExercise(problem: ProblemData, difficulty: Difficulty, narrative: string, result?: SimplexResult | null): Exercise {
+function buildExercise(problem: ProblemData, difficulty: Difficulty, narrative: string, result?: SimplexResult | null, isEnunciado?: boolean): Exercise {
   const resultText = result
     ? Object.entries(result.variables)
         .map(([k, v]) => `${k} = ${formatNumber(v)}`)
@@ -51,6 +51,7 @@ function buildExercise(problem: ProblemData, difficulty: Difficulty, narrative: 
     constraints: problem.constraintsData,
     solution: { values: resultText, optimalZ: optimalText },
     steps: result?.steps?.map((s, i) => `Iteración ${i + 1}: ${s.explanationSpanish ?? s.explanation}`) ?? [],
+    isEnunciado: isEnunciado ?? false,
   }
 }
 
@@ -132,7 +133,7 @@ export default function GeneratorPage() {
   function handleSaveToLibrary() {
     if (!generated) return
     const desc = enunciadoMode && narrative ? narrative : `Ejercicio de ${problemType === "MAX" ? "maximización" : "minimización"} con ${generated.variables} variables y ${generated.constraints} restricciones.`
-    const exercise = buildExercise(generated, difficulty, desc, result)
+    const exercise = buildExercise(generated, difficulty, desc, result, enunciadoMode)
     saveExercise(exercise)
     setSaved(true)
   }

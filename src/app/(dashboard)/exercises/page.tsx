@@ -40,6 +40,7 @@ const defaultExercises: Exercise[] = [
       { coefficients: [1, 2], operator: "<=", value: 80 },
     ],
     solution: { values: "X = 40, Y = 20", optimalZ: "Z = 30(40) + 40(20) = 2.000" },
+    isEnunciado: true,
     steps: [
       "Identificar variables de decisión: X = cantidad del producto A, Y = cantidad del producto B",
       "Función objetivo: Maximizar Z = 30X + 40Y",
@@ -72,6 +73,7 @@ const defaultExercises: Exercise[] = [
       values: "X = 50, Y = 50, Z = 35",
       optimalZ: "Z = 50(50) + 40(50) + 30(35) = 5.550",
     },
+    isEnunciado: true,
     steps: [
       "Variables: X, Y, Z = unidades a producir de cada producto",
       "Maximizar Z = 50X + 40Y + 30Z",
@@ -100,6 +102,7 @@ const defaultExercises: Exercise[] = [
       values: "X = 62.5, Y = 25, Z = 37.5",
       optimalZ: "Z = 60(62.5) + 50(25) + 40(37.5) = 6.500",
     },
+    isEnunciado: true,
     steps: [
       "Variables: X, Y, Z = unidades producidas de cada línea",
       "Maximizar Z = 60X + 50Y + 40Z",
@@ -190,7 +193,7 @@ export default function ExercisesPage() {
     setSavedExercises(getSavedExercises())
   }
 
-  const allExercises = [...defaultExercises, ...savedExercises]
+  const allExercises = [...defaultExercises, ...savedExercises.filter((e) => e.isEnunciado)]
   const filtered = allExercises.filter((ex) => ex.difficulty === activeTab)
   const varNames = (n: number) => Array.from({ length: n }, (_, i) => String.fromCharCode(87 + i))
 
