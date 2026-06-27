@@ -53,6 +53,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
+import { FileDown, FileText, FileSpreadsheet, Download, Minus, Plus, Package, Truck, TrendingDown, Users, Eye } from "lucide-react"
 import type { SimplexResult, SimplexStep, SimplexTable, ProblemData } from "@/types"
 
 const methodLabels: Record<string, string> = {
@@ -276,6 +278,7 @@ export default function SolvePage() {
               runSolve(false)
             }}
           />
+          <ExportDialog problem={problem} result={result} />
           <Button onClick={() => { setResult(null); setCurrentResult(null); runSolve(false) }} variant="ghost" className="gap-2">
             <Zap className="h-4 w-4" />
             Re-resolver
@@ -590,6 +593,111 @@ export default function SolvePage() {
   )
 }
 
+const constraintIcons = [Package, Truck, Clock, Users, Cpu]
+
+const constraintLabels = [
+  "Demanda máxima",
+  "Materia prima",
+  "Horas disponibles",
+  "Cantidad de operarios",
+  "Capacidad de máquinas",
+]
+
+function getConstraintLabel(index: number): string {
+  return index < constraintLabels.length
+    ? constraintLabels[index]
+    : `Restricción ${index + 1}`
+}
+
+function ParamControl({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  icon: Icon,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  onChange: (v: number) => void
+  icon?: React.ElementType
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="size-4 text-muted-foreground shrink-0" />}
+          <Label className="text-sm font-medium">{label}</Label>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-7 shrink-0"
+            onClick={() => onChange(Math.max(min, +(value - step).toFixed(4)))}
+            disabled={value <= min}
+          >
+            <Minus className="size-3" />
+          </Button>
+          <Input
+            type="number"
+            value={value}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (!isNaN(v)) onChange(Math.min(max, Math.max(min, v)))
+            }}
+            className="w-20 h-8 text-center text-sm tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-7 shrink-0"
+            onClick={() => onChange(Math.min(max, +(value + step).toFixed(4)))}
+            disabled={value >= max}
+          >
+            <Plus className="size-3" />
+          </Button>
+        </div>
+      </div>
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        onValueChange={(value) => { const v = Array.isArray(value) ? value[0] : value; onChange(v) }}
+      />
+    </div>
+  )
+}
+
+function formatModel(problem: ProblemData): string[] {
+  const lines: string[] = []
+  const label = problem.problemType === "MAX" ? "Maximizar" : "Minimizar"
+  const objTerms = problem.objective.map(
+    (c, i) => `${c >= 0 && i > 0 ? "+ " : c < 0 ? "- " : ""}${Math.abs(c)}x${i + 1}`
+  )
+  lines.push(`${label}: Z = ${objTerms.join(" ")}`)
+  lines.push("Sujeto a:")
+  for (const c of problem.constraintsData) {
+    const terms = c.coefficients.map(
+      (coef, j) => `${coef >= 0 && j > 0 ? "+ " : coef < 0 ? "- " : ""}${Math.abs(coef)}x${j + 1}`
+    )
+    lines.push(`  ${terms.join(" ")} ${c.operator} ${c.value}`)
+  }
+  for (let i = 0; i < problem.variables; i++) {
+    const t = problem.variableTypes[i]
+    if (t === "positive") lines.push(`  x${i + 1} ≥ 0`)
+    else if (t === "integer") lines.push(`  x${i + 1} ≥ 0, entero`)
+    else if (t === "binary") lines.push(`  x${i + 1} ∈ {0, 1}`)
+    else if (t === "free") lines.push(`  x${i + 1} libre`)
+  }
+  return lines
+}
+
 function ParametersDialog({
   problem,
   onResolve,
@@ -606,16 +714,14 @@ function ParametersDialog({
   if (!local) return null
 
   const updateObjective = (i: number, v: number) => {
-    const next = { ...local, objective: local.objective.map((c, j) => j === i ? v : c) }
-    setLocal(next)
+    setLocal((prev) => prev ? { ...prev, objective: prev.objective.map((c, j) => j === i ? v : c) } : null)
   }
 
   const updateConstraintValue = (i: number, v: number) => {
-    const next = {
-      ...local,
-      constraintsData: local.constraintsData.map((c, j) => j === i ? { ...c, value: v } : c),
-    }
-    setLocal(next)
+    setLocal((prev) => prev ? {
+      ...prev,
+      constraintsData: prev.constraintsData.map((c, j) => j === i ? { ...c, value: v } : c),
+    } : null)
   }
 
   return (
@@ -626,45 +732,129 @@ function ParametersDialog({
         <Settings2 className="h-4 w-4" />
         Parámetros
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Parámetros del Problema</DialogTitle>
           <DialogDescription>
-            Modifica coeficientes y recursos del modelo
+            Ajusta los coeficientes y recursos del modelo de optimización
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-6 py-2 max-h-[60vh] overflow-y-auto">
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium">Función Objetivo</h4>
-            {local.objective.map((coef, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <Label className="w-12 text-sm">X{i + 1}</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={coef}
-                  onChange={(e) => updateObjective(i, Number(e.target.value))}
-                />
+        <div className="space-y-6 py-2 max-h-[65vh] overflow-y-auto">
+          {/* Ganancias / Función Objetivo */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="size-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <DollarSign className="size-4 text-primary" />
               </div>
+              <div>
+                <h4 className="text-sm font-medium">Ganancias</h4>
+                <p className="text-xs text-muted-foreground">
+                  Coeficientes de la función objetivo
+                </p>
+              </div>
+            </div>
+            {local.objective.map((coef, i) => (
+              <ParamControl
+                key={`obj-${i}`}
+                label={`Producto ${i + 1} (x${i + 1})`}
+                value={coef}
+                min={-100}
+                max={100}
+                step={1}
+                onChange={(v) => updateObjective(i, v)}
+                icon={DollarSign}
+              />
             ))}
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium">Restricciones (RHS)</h4>
-            {local.constraintsData.map((c, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <Label className="w-12 text-sm">R{i + 1}</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={c.value}
-                  onChange={(e) => updateConstraintValue(i, Number(e.target.value))}
-                />
+          {/* Costos */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="size-8 rounded-xl bg-red-50 dark:bg-red-950/50 flex items-center justify-center">
+                <TrendingDown className="size-4 text-red-500" />
               </div>
+              <div>
+                <h4 className="text-sm font-medium">Costos</h4>
+                <p className="text-xs text-muted-foreground">
+                  Costos asociados a cada variable de decisión
+                </p>
+              </div>
+            </div>
+            {local.objective.map((_, i) => (
+              <ParamControl
+                key={`cost-${i}`}
+                label={`Costo Producto ${i + 1} (x${i + 1})`}
+                value={0}
+                min={0}
+                max={100}
+                step={1}
+                onChange={() => {}}
+                icon={TrendingDown}
+              />
             ))}
+            <p className="text-xs text-muted-foreground">
+              Los costos se manejan como parte del modelo. Ajusta las ganancias si el problema es de maximización.
+            </p>
+          </div>
+
+          {/* Restricciones */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="size-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center">
+                <Package className="size-4 text-amber-500" />
+              </div>
+              <div>
+                <h4 className="text-sm font-medium">Restricciones</h4>
+                <p className="text-xs text-muted-foreground">
+                  Recursos disponibles — modifica los valores límite
+                </p>
+              </div>
+            </div>
+            {local.constraintsData.map((c, i) => {
+              const Icon = constraintIcons[i] ?? Package
+              return (
+                <div key={`con-${i}`} className="space-y-3 pb-4 border-b last:border-b-0 last:pb-0">
+                  <div className="flex items-start gap-3">
+                    <div className="size-8 rounded-lg bg-muted flex items-center justify-center mt-0.5 shrink-0">
+                      <Icon className="size-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{getConstraintLabel(i)}</p>
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">
+                        {c.coefficients
+                          .map((coef, j) =>
+                            `${coef >= 0 && j > 0 ? "+ " : coef < 0 ? "- " : ""}${Math.abs(coef)}x${j + 1}`
+                          )
+                          .join(" ")}{" "}
+                        {c.operator} {c.value}
+                      </p>
+                    </div>
+                  </div>
+                  <ParamControl
+                    label="Valor del recurso"
+                    value={c.value}
+                    min={0}
+                    max={1000}
+                    step={1}
+                    onChange={(v) => updateConstraintValue(i, v)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Vista Previa */}
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Eye className="size-4 text-primary" />
+              <h4 className="text-sm font-medium">Vista Previa del Modelo</h4>
+            </div>
+            <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed bg-background rounded p-3 border">
+              {formatModel(local).join("\n")}
+            </pre>
           </div>
         </div>
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="flex justify-end gap-3 pt-2 border-t">
           <DialogTrigger
             render={<Button variant="outline" />}
           >
@@ -679,6 +869,179 @@ function ParametersDialog({
           >
             Aplicar y Re-resolver
           </DialogTrigger>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ExportDialog({
+  problem,
+  result,
+}: {
+  problem: ProblemData | null
+  result: SimplexResult | null
+}) {
+  const [exporting, setExporting] = useState<string | null>(null)
+
+  const handleExportPDF = useCallback(async () => {
+    if (!problem || !result) return
+    setExporting("pdf")
+    try {
+      const { default: jsPDF } = await import("jspdf")
+      const doc = new jsPDF()
+      const pageW = doc.internal.pageSize.getWidth()
+      let y = 20
+
+      doc.setFontSize(18)
+      doc.text("Informe de Optimización", pageW / 2, y, { align: "center" })
+      y += 12
+
+      doc.setFontSize(11)
+      doc.text(`Título: ${problem.title}`, 14, y)
+      y += 7
+      doc.text(`Tipo: ${problem.problemType === "MAX" ? "Maximización" : "Minimización"}`, 14, y)
+      y += 7
+      doc.text(`Método: ${problem.method}`, 14, y)
+      y += 10
+
+      doc.setFontSize(14)
+      doc.text("Función Objetivo", 14, y)
+      y += 8
+      doc.setFontSize(10)
+      const objStr = problem.objective.map((c, i) => `${c >= 0 ? "+" : ""}${c}x${i + 1}`).join(" ")
+      doc.text(`Z = ${objStr.replace(/^\+/, "")}`, 14, y)
+      y += 10
+
+      doc.setFontSize(14)
+      doc.text("Restricciones", 14, y)
+      y += 8
+      doc.setFontSize(10)
+      for (const row of problem.constraintsData) {
+        const rowStr = row.coefficients.map((c, i) => `${c >= 0 ? "+" : ""}${c}x${i + 1}`).join(" ").replace(/^\+/, "") + ` ${row.operator} ${row.value}`
+        doc.text(rowStr, 14, y)
+        y += 6
+        if (y > 270) { doc.addPage(); y = 20 }
+      }
+      y += 6
+
+      doc.setFontSize(14)
+      doc.text("Resultados", 14, y)
+      y += 8
+      doc.setFontSize(11)
+      doc.text(`Valor Óptimo: ${formatNumber(result.optimalValue)}`, 14, y)
+      y += 8
+      doc.text(`Estado: ${statusLabels[result.status] ?? result.status}`, 14, y)
+      y += 8
+      doc.text(`Iteraciones: ${result.iterations}`, 14, y)
+      y += 8
+      doc.text(`Tiempo: ${result.timeMs} ms`, 14, y)
+      y += 10
+
+      doc.setFontSize(12)
+      doc.text("Variables Óptimas", 14, y)
+      y += 8
+      doc.setFontSize(10)
+      for (const [key, value] of Object.entries(result.variables)) {
+        doc.text(`${key} = ${formatNumber(value)}`, 14, y)
+        y += 6
+      }
+      y += 6
+
+      if (result.slackVariables && Object.keys(result.slackVariables).length > 0) {
+        doc.setFontSize(12)
+        doc.text("Holguras (Slack)", 14, y)
+        y += 8
+        doc.setFontSize(10)
+        for (const [key, value] of Object.entries(result.slackVariables)) {
+          doc.text(`${key} = ${formatNumber(value)}`, 14, y)
+          y += 6
+        }
+      }
+
+      doc.save(`informe-optimizacion-${Date.now()}.pdf`)
+    } catch {} finally {
+      setExporting(null)
+    }
+  }, [problem, result])
+
+  const handleExportCSV = useCallback(() => {
+    if (!result) return
+    setExporting("csv")
+    try {
+      const headers = ["Variable", "Valor"]
+      const varRows = Object.entries(result.variables).map(([k, v]) => `${k},${v}`)
+      const slackRows = Object.entries(result.slackVariables ?? {}).map(([k, v]) => `${k},${v}`)
+      const meta = [
+        "Optimo,Resultado",
+        `Valor Óptimo,${result.optimalValue}`,
+        `Estado,${statusLabels[result.status] ?? result.status}`,
+        `Iteraciones,${result.iterations}`,
+      ]
+      const csv = [...meta, "", headers.join(","), ...varRows, "", "Holgura,Valor", ...slackRows].join("\n")
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `resultados-${Date.now()}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(null)
+    }
+  }, [result])
+
+  return (
+    <Dialog>
+      <DialogTrigger
+        render={<Button variant="outline" className="gap-2" />}
+      >
+        <FileDown className="h-4 w-4" />
+        Exportar
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Exportar Resultados</DialogTitle>
+          <DialogDescription>
+            Elige el formato para exportar los datos del problema
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div
+            className="flex items-center justify-between rounded-lg border p-4 hover:shadow-sm transition-shadow cursor-pointer"
+            onClick={handleExportPDF}
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <FileText className="size-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">PDF</p>
+                <p className="text-xs text-muted-foreground">Informe completo del problema</p>
+              </div>
+            </div>
+            <Button size="sm" disabled={exporting === "pdf"}>
+              {exporting === "pdf" ? "..." : <Download className="size-4" />}
+            </Button>
+          </div>
+
+          <div
+            className="flex items-center justify-between rounded-lg border p-4 hover:shadow-sm transition-shadow cursor-pointer"
+            onClick={handleExportCSV}
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <FileSpreadsheet className="size-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">CSV</p>
+                <p className="text-xs text-muted-foreground">Valores separados por comas</p>
+              </div>
+            </div>
+            <Button size="sm" disabled={exporting === "csv"}>
+              {exporting === "csv" ? "..." : <Download className="size-4" />}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

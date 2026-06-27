@@ -26,7 +26,7 @@ const navItems = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/problems/new", label: "Nuevo Problema", icon: PlusCircle },
   { href: "/problems", label: "Problemas", icon: Brain },
-  { href: "/solve", label: "Resolver", icon: Play },
+  { href: "/solve", label: "Resultados", icon: Play },
   { href: "/scenarios", label: "Escenarios", icon: SplitSquareVertical },
   { href: "/exercises", label: "Biblioteca", icon: BookOpen },
   { href: "/exercises/generator", label: "Generador", icon: FlaskConical },
