@@ -400,6 +400,158 @@ function buildPivotExplanation(
   return { en: explanationEn, es: explanationEs }
 }
 
+function solveRelaxation(problem: ProblemData): SimplexResult {
+  return solveSimplex({ ...problem, method: "BIG_M" })
+}
+
+function findMostFractional(
+  varNames: string[],
+  variableTypes: string[],
+  variables: Record<string, number>
+): { index: number; value: number } | null {
+  let best: { index: number; value: number; frac: number } | null = null
+
+  for (let i = 0; i < varNames.length; i++) {
+    const type = variableTypes[i]
+    if (type !== "integer" && type !== "binary") continue
+
+    const val = variables[varNames[i]] ?? 0
+    const frac = Math.abs(val - Math.round(val))
+
+    if (frac > EPSILON && (!best || frac > best.frac)) {
+      best = { index: i, value: val, frac }
+    }
+  }
+
+  return best ? { index: best.index, value: best.value } : null
+}
+
+function addConstraint(
+  problem: ProblemData,
+  varIndex: number,
+  operator: "<=" | ">=",
+  value: number
+): ProblemData {
+  const coeffs = Array(problem.variables).fill(0)
+  coeffs[varIndex] = 1
+
+  return {
+    ...problem,
+    constraintsData: [
+      ...problem.constraintsData,
+      { coefficients: coeffs, operator, value },
+    ],
+    constraints: problem.constraints + 1,
+  }
+}
+
+function branchAndBound(
+  problem: ProblemData,
+  varNames: string[],
+  depth: number
+): SimplexResult | null {
+  const MAX_DEPTH = 50
+
+  const result = solveRelaxation(problem)
+  if (result.status === "INFEASIBLE" || result.status === "UNBOUNDED") {
+    return null
+  }
+
+  const fractional = findMostFractional(varNames, problem.variableTypes, result.variables)
+  if (!fractional) {
+    return result
+  }
+
+  if (depth >= MAX_DEPTH) {
+    return null
+  }
+
+  const { index, value } = fractional
+  const varType = problem.variableTypes[index]
+  const varName = varNames[index]
+
+  let floorVal: number
+  let ceilVal: number
+
+  if (varType === "binary") {
+    floorVal = 0
+    ceilVal = 1
+  } else {
+    floorVal = Math.floor(value)
+    ceilVal = Math.ceil(value)
+  }
+
+  const leftProblem = addConstraint(problem, index, "<=", floorVal)
+  const leftResult = branchAndBound(leftProblem, varNames, depth + 1)
+
+  const rightProblem = addConstraint(problem, index, ">=", ceilVal)
+  const rightResult = branchAndBound(rightProblem, varNames, depth + 1)
+
+  if (!leftResult && !rightResult) return null
+  if (!leftResult) return rightResult
+  if (!rightResult) return leftResult
+
+  const isMax = problem.problemType === "MAX"
+  return isMax
+    ? (leftResult.optimalValue >= rightResult.optimalValue ? leftResult : rightResult)
+    : (leftResult.optimalValue <= rightResult.optimalValue ? leftResult : rightResult)
+}
+
+export function solveIntegerProgramming(problem: ProblemData): SimplexResult {
+  const hasIntegerVars = problem.variableTypes.some(t => t === "integer" || t === "binary")
+  if (!hasIntegerVars) {
+    return solveSimplex(problem)
+  }
+
+  const varNames = generateVariableNames(problem.variables)
+  const startTime = performance.now()
+
+  let modifiedProblem = { ...problem }
+  const hasBinary = problem.variableTypes.some(t => t === "binary")
+
+  if (hasBinary) {
+    const newConstraints = [...problem.constraintsData]
+    let extraCount = 0
+    for (let i = 0; i < problem.variables; i++) {
+      if (problem.variableTypes[i] === "binary") {
+        const coeffs = Array(problem.variables).fill(0)
+        coeffs[i] = 1
+        newConstraints.push({ coefficients: coeffs, operator: "<=", value: 1 })
+        extraCount++
+      }
+    }
+    modifiedProblem = {
+      ...problem,
+      constraintsData: newConstraints,
+      constraints: problem.constraints + extraCount,
+    }
+  }
+
+  const bestResult = branchAndBound(modifiedProblem, varNames, 0)
+
+  if (!bestResult) {
+    return {
+      optimal: false,
+      optimalValue: 0,
+      variables: {},
+      slackVariables: {},
+      steps: [],
+      method: "INTEGER_PROGRAMMING",
+      iterations: 0,
+      status: "INFEASIBLE",
+      statusExplanation:
+        "El problema entero no tiene solución factible. Verifique las restricciones y los tipos de variables.",
+      timeMs: performance.now() - startTime,
+    }
+  }
+
+  bestResult.method = "INTEGER_PROGRAMMING"
+  bestResult.timeMs = performance.now() - startTime
+  bestResult.statusExplanation =
+    "Solución óptima entera encontrada mediante Branch and Bound. Todos los valores de las variables enteras cumplen con las restricciones de integralidad."
+  return bestResult
+}
+
 export function solveGraphical(problem: ProblemData): SimplexResult {
   if (problem.variables !== 2) {
     throw new Error("Graphical method requires exactly 2 variables")
@@ -416,10 +568,14 @@ export function solveTwoPhase(problem: ProblemData): SimplexResult {
 }
 
 export function autoDetectMethod(problem: ProblemData): SolveMethod {
+  const hasIntegerVars = problem.variableTypes.some(t => t === "integer" || t === "binary")
   const hasEquality = problem.constraintsData.some((r) => r.operator === "=")
   const hasGreaterEqual = problem.constraintsData.some((r) => r.operator === ">=")
   const hasFreeVariable = problem.variableTypes.includes("free")
 
+  if (hasIntegerVars) {
+    return "INTEGER_PROGRAMMING"
+  }
   if (problem.variables === 2 && problem.constraints <= 5) {
     return "GRAPHICAL"
   }
@@ -444,6 +600,8 @@ export function solveProblem(problem: ProblemData): SimplexResult {
     result = solveGraphical(problem)
   } else if (method === "BIG_M") {
     result = solveBigM(problem)
+  } else if (method === "INTEGER_PROGRAMMING") {
+    result = solveIntegerProgramming(problem)
   } else {
     result = solveSimplex({ ...problem, method })
   }

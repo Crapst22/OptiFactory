@@ -36,6 +36,7 @@ import type { SolveMethod } from "@/types"
 const methods: { value: SolveMethod; label: string }[] = [
   { value: "AUTO", label: "Automático" },
   { value: "SIMPLEX", label: "Simplex" },
+  { value: "INTEGER_PROGRAMMING", label: "Programación Lineal Entera" },
   { value: "BIG_M", label: "Big M" },
   { value: "TWO_PHASE", label: "Dos Fases" },
   { value: "DUAL_SIMPLEX", label: "Simplex Dual" },

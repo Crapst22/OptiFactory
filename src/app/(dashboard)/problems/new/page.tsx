@@ -156,6 +156,7 @@ export default function NewProblemPage() {
                   <SelectItem value="AUTO">Automático</SelectItem>
                   <SelectItem value="GRAPHICAL">Método Gráfico</SelectItem>
                   <SelectItem value="SIMPLEX">Simplex</SelectItem>
+                  <SelectItem value="INTEGER_PROGRAMMING">Programación Lineal Entera</SelectItem>
                   <SelectItem value="DUAL_SIMPLEX">Dual Simplex</SelectItem>
                   <SelectItem value="BIG_M">Big M</SelectItem>
                   <SelectItem value="TWO_PHASE">Dos Fases</SelectItem>

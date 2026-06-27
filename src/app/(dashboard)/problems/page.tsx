@@ -14,6 +14,7 @@ import type { ProblemData } from "@/types"
 const methodLabels: Record<string, string> = {
   AUTO: "Automático",
   SIMPLEX: "Simplex",
+  INTEGER_PROGRAMMING: "P.L. Entera",
   GRAPHICAL: "Gráfico",
   DUAL_SIMPLEX: "Dual Simplex",
   BIG_M: "Big M",

@@ -59,6 +59,7 @@ import type { SimplexResult, SimplexStep, SimplexTable, ProblemData } from "@/ty
 const methodLabels: Record<string, string> = {
   GRAPHICAL: "Método Gráfico",
   SIMPLEX: "Método Simplex",
+  INTEGER_PROGRAMMING: "Programación Lineal Entera",
   DUAL_SIMPLEX: "Simplex Dual",
   BIG_M: "Método Gran M",
   TWO_PHASE: "Método de Dos Fases",

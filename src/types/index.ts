@@ -1,5 +1,5 @@
 export type ProblemType = "MAX" | "MIN"
-export type SolveMethod = "GRAPHICAL" | "SIMPLEX" | "DUAL_SIMPLEX" | "BIG_M" | "TWO_PHASE" | "AUTO"
+export type SolveMethod = "GRAPHICAL" | "SIMPLEX" | "DUAL_SIMPLEX" | "BIG_M" | "TWO_PHASE" | "INTEGER_PROGRAMMING" | "AUTO"
 export type VariableType = "positive" | "integer" | "binary" | "free"
 export type Difficulty = "BEGINNER" | "INTERMEDIATE" | "ADVANCED"
 export type Operator = "<=" | ">=" | "="
