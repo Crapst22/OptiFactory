@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Loader2, Send, Sparkles, Bot, User, CheckCircle2, AlertCircle } from "lucide-react"
+import { Loader2, Send, Sparkles, Bot, User, CheckCircle2 } from "lucide-react"
 import { sendMessage, extractProblemFromResponse, ChatMessage } from "@/services/ollama"
 import { ProblemData } from "@/types"
 
@@ -52,20 +52,11 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
       const extracted = extractProblemFromResponse(fullContent)
       if (extracted) {
         setParsedProblem(extracted)
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: fullContent },
-        ])
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content:
-              "No pude extraer los parámetros del problema. ¿Podrías darme más detalles? Por ejemplo: 'Una empresa produce dos productos...'",
-          },
-        ])
       }
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: fullContent },
+      ])
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error desconocido"
       setMessages((prev) => [
@@ -99,7 +90,7 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
                 </div>
               )}
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-2.5 text-sm ${
+                className={`max-w-[80%] rounded-lg px-4 py-2.5 text-sm whitespace-pre-wrap ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
@@ -120,7 +111,7 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
               <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                 <Bot className="size-4 text-primary" />
               </div>
-              <div className="max-w-[80%] rounded-lg px-4 py-2.5 text-sm bg-muted">
+              <div className="max-w-[80%] rounded-lg px-4 py-2.5 text-sm bg-muted whitespace-pre-wrap">
                 {streamingText}
                 <span className="animate-pulse ml-0.5">|</span>
               </div>
@@ -155,15 +146,6 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
               Aplicar
             </Button>
           </div>
-        </div>
-      )}
-
-      {!parsedProblem && !loading && messages.length > 1 && (
-        <div className="px-4 py-2 border-t bg-muted/30">
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <AlertCircle className="size-3.5" />
-            No se pudieron extraer parámetros. Sé más específico o describe el problema con más detalles.
-          </p>
         </div>
       )}
 

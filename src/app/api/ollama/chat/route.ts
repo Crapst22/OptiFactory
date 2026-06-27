@@ -3,8 +3,9 @@ import { NextRequest } from "next/server"
 export async function POST(req: NextRequest) {
   const { messages } = await req.json()
 
-  const systemPrompt = `Eres un experto en Programación Lineal. Tu tarea es analizar enunciados de problemas escritos en lenguaje natural y extraer los parámetros del modelo matemático.
+  const systemPrompt = `Eres un experto en Programación Lineal. Tu tarea es ayudar al usuario a modelar problemas de programación lineal.
 
+## Si el usuario describe un problema de programación lineal real (con datos numéricos, restricciones, función objetivo):
 Debes devolver SOLO un objeto JSON válido con esta estructura exacta (sin texto adicional, sin markdown, solo el JSON):
 
 {
@@ -22,13 +23,14 @@ Debes devolver SOLO un objeto JSON válido con esta estructura exacta (sin texto
   "variableTypes": ["positive" o "integer" o "binary" o "free", ...]
 }
 
-Reglas:
-- Si no se especifica tipo, asume variable positiva ("positive")
+Reglas para el JSON:
+- Si no se especifica tipo de variable, asume "positive"
 - Si no se especifica operador, asume "<="
 - Usa "MAX" para maximización y "MIN" para minimización
-- Asegúrate de que la cantidad de coeficientes en objective coincida con variables
-- Asegúrate de que cada constraintsData tenga la misma cantidad de coeficientes que variables
-- Responde ÚNICAMENTE con el JSON, sin explicaciones`
+- Asegúrate de que objective y cada constraint tengan la misma cantidad de coeficientes que variables
+
+## Si el usuario NO describe un problema (saluda, pregunta algo, habla de otro tema):
+Responde de forma natural y conversacional, sin incluir ningún JSON. Puedes saludar, explicar qué haces, y pedirle que describa su problema de programación lineal.`
 
   const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
