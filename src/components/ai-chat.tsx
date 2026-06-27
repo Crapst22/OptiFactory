@@ -72,7 +72,7 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
         ...prev,
         {
           role: "assistant",
-          content: `Error al conectar con la IA: ${msg}. Asegúrate de que Ollama esté corriendo (ollama serve).`,
+          content: `Error al conectar con la IA: ${msg}. Verifica que la API key de Groq esté configurada.`,
         },
       ])
     } finally {
@@ -86,7 +86,7 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
       <div className="flex items-center gap-2 px-4 py-3 border-b">
         <Bot className="size-5 text-primary" />
         <span className="font-semibold">Asistente IA</span>
-        <span className="text-xs text-muted-foreground ml-auto">Ollama</span>
+        <span className="text-xs text-muted-foreground ml-auto">Groq · Llama 3.3 70B</span>
       </div>
 
       <ScrollArea className="flex-1 p-4">
