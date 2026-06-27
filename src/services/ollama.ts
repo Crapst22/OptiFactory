@@ -11,13 +11,12 @@ export interface ChatMessage {
 
 export async function sendMessage(
   messages: ChatMessage[],
-  onToken: (token: string) => void,
-  extractOnly?: boolean
+  onToken: (token: string) => void
 ): Promise<string> {
   const res = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, extractOnly }),
+    body: JSON.stringify({ messages }),
   })
 
   if (!res.ok) {
@@ -42,16 +41,21 @@ export async function sendMessage(
   return fullContent
 }
 
-export function extractProblemFromResponse(text: string): Partial<ProblemData> | null {
+export function extractProblemFromResponse(text: string): { displayText: string; problem: Partial<ProblemData> | null } {
+  const paramsMatch = text.match(/---PARAMS---\s*(\{[\s\S]*?\})\s*---END---/)
+  if (!paramsMatch) {
+    return { displayText: text, problem: null }
+  }
+
+  const displayText = text.replace(/---PARAMS---[\s\S]*?---END---/, "").trim()
+
   try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return null
-    const data = JSON.parse(jsonMatch[0])
+    const data = JSON.parse(paramsMatch[1])
 
     const vars = Math.max(2, Math.min(10, data.variables || 2))
     const cons = data.constraintsData?.length || 2
 
-    return {
+    const problem: Partial<ProblemData> = {
       title: data.title || "Problema desde IA",
       problemType: data.problemType === "MIN" ? "MIN" : "MAX",
       method: "AUTO",
@@ -65,7 +69,9 @@ export function extractProblemFromResponse(text: string): Partial<ProblemData> |
       })),
       variableTypes: Array(vars).fill("positive").map((_, i) => data.variableTypes?.[i] || "positive"),
     }
+
+    return { displayText: displayText || "Parámetros extraídos correctamente.", problem }
   } catch {
-    return null
+    return { displayText: text.replace(/---PARAMS---[\s\S]*?---END---/, "").trim(), problem: null }
   }
 }
