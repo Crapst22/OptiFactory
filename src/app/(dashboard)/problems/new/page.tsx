@@ -82,7 +82,7 @@ export default function NewProblemPage() {
           <Sparkles className="size-5 text-primary" />
           Asistente IA — describe tu problema en lenguaje natural
         </DialogTrigger>
-        <DialogContent className="max-w-2xl h-[600px] p-0 flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[80vh] h-[600px] p-0 flex flex-col overflow-hidden">
           <AiChat
             onApplyProblem={(parsed) => {
               if (parsed.title) setTitle(parsed.title)

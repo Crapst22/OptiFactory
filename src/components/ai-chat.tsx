@@ -73,7 +73,7 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center gap-2 px-4 py-3 border-b">
         <Bot className="size-5 text-primary" />
         <span className="font-semibold">Asistente IA</span>
