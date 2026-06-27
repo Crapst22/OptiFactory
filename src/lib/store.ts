@@ -1,4 +1,4 @@
-import { AppConfig, ProblemData, SimplexResult, SolveMethod, ViewMode } from "@/types"
+import { AppConfig, Exercise, ProblemData, SimplexResult, SolveMethod, ViewMode } from "@/types"
 
 const defaultConfig: AppConfig = {
   theme: "light",
@@ -91,4 +91,34 @@ export function deleteSavedProblem(title: string): void {
   if (typeof window === "undefined") return
   const list = getSavedProblems().filter((p) => p.title !== title)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+}
+
+const EXERCISES_KEY = "optifactory-exercises"
+
+export function saveExercise(exercise: Exercise): void {
+  if (typeof window === "undefined") return
+  const list = getSavedExercises()
+  const idx = list.findIndex((e) => e.title === exercise.title)
+  if (idx >= 0) {
+    list[idx] = exercise
+  } else {
+    list.push(exercise)
+  }
+  localStorage.setItem(EXERCISES_KEY, JSON.stringify(list))
+}
+
+export function getSavedExercises(): Exercise[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = localStorage.getItem(EXERCISES_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+export function deleteSavedExercise(title: string): void {
+  if (typeof window === "undefined") return
+  const list = getSavedExercises().filter((e) => e.title !== title)
+  localStorage.setItem(EXERCISES_KEY, JSON.stringify(list))
 }

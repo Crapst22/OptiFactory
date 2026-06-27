@@ -111,6 +111,18 @@ export interface AppConfig {
   autoDetectMethod: boolean
 }
 
+export interface Exercise {
+  id: string
+  title: string
+  description: string
+  difficulty: Difficulty
+  problemType: ProblemType
+  objective: number[]
+  constraints: ConstraintRow[]
+  solution: { values: string; optimalZ: string }
+  steps: string[]
+}
+
 export interface PlotPoint {
   x: number
   y: number

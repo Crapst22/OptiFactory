@@ -1,17 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { BookOpen, BarChart3, Lightbulb, ArrowRight } from "lucide-react"
+import { BookOpen, BarChart3, Lightbulb, ArrowRight, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { setCurrentProblem } from "@/lib/store"
+import { setCurrentProblem, getSavedExercises, deleteSavedExercise } from "@/lib/store"
 import { cn } from "@/lib/utils"
-import type { ProblemData, ConstraintRow, Difficulty, Operator } from "@/types"
+import type { ProblemData, ConstraintRow, Difficulty, Operator, Exercise } from "@/types"
 
 const container = {
   hidden: { opacity: 0 },
@@ -26,19 +26,7 @@ const item = {
   show: { opacity: 1, y: 0 },
 }
 
-interface Exercise {
-  id: string
-  title: string
-  description: string
-  difficulty: Difficulty
-  problemType: "MAX" | "MIN"
-  objective: number[]
-  constraints: { coefficients: number[]; operator: Operator; value: number }[]
-  solution: { values: string; optimalZ: string }
-  steps: string[]
-}
-
-const exercises: Exercise[] = [
+const defaultExercises: Exercise[] = [
   {
     id: "beginner-1",
     title: "Maximización de Producción",
@@ -178,6 +166,11 @@ export default function ExercisesPage() {
   const [activeTab, setActiveTab] = useState<Difficulty>("BEGINNER")
   const [solutionsVisible, setSolutionsVisible] = useState<Record<string, boolean>>({})
   const [stepsVisible, setStepsVisible] = useState<Record<string, boolean>>({})
+  const [savedExercises, setSavedExercises] = useState<Exercise[]>([])
+
+  useEffect(() => {
+    setSavedExercises(getSavedExercises())
+  }, [])
 
   const toggleSolution = (id: string) => {
     setSolutionsVisible((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -192,8 +185,16 @@ export default function ExercisesPage() {
     router.push("/solve")
   }
 
-  const filtered = exercises.filter((ex) => ex.difficulty === activeTab)
+  const handleDelete = (title: string) => {
+    deleteSavedExercise(title)
+    setSavedExercises(getSavedExercises())
+  }
+
+  const allExercises = [...defaultExercises, ...savedExercises]
+  const filtered = allExercises.filter((ex) => ex.difficulty === activeTab)
   const varNames = (n: number) => Array.from({ length: n }, (_, i) => String.fromCharCode(87 + i))
+
+  const isSaved = (id: string) => id.startsWith("generated-")
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="max-w-6xl mx-auto space-y-8">
@@ -249,6 +250,7 @@ export default function ExercisesPage() {
                   const showSol = solutionsVisible[ex.id]
                   const showSteps = stepsVisible[ex.id]
                   const diffCfg = difficultyConfig[ex.difficulty]
+                  const saved = isSaved(ex.id)
 
                   return (
                     <motion.div
@@ -266,6 +268,11 @@ export default function ExercisesPage() {
                                 <Badge className={cn("font-medium", diffCfg.color)}>
                                   {diffCfg.label}
                                 </Badge>
+                                {saved && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Generado
+                                  </Badge>
+                                )}
                               </div>
                               <CardDescription className="text-sm leading-relaxed">
                                 {ex.description}
@@ -347,6 +354,17 @@ export default function ExercisesPage() {
                             >
                               <BookOpen className="size-4" />
                               {showSteps ? "Ocultar Pasos" : "Ver Paso a Paso"}
+                            </Button>
+                          )}
+                          {saved && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(ex.title)}
+                              className="gap-2 text-red-500 hover:text-red-600"
+                            >
+                              <Trash2 className="size-3" />
+                              Eliminar
                             </Button>
                           )}
                         </CardFooter>
