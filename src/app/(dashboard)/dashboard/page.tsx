@@ -39,11 +39,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const all = getSavedProblems()
-    const withResults = all.filter((p) => {
-      const saved = localStorage.getItem(`${STORAGE_RESULTS_KEY}-${p.title}`)
-      return saved !== null
-    })
-    setRecentProblems(withResults.slice(-5).reverse())
+    setRecentProblems(all.slice(-3).reverse())
   }, [])
 
   const handleResolve = (p: ProblemData) => {
