@@ -28,17 +28,17 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden md:flex md:w-64 lg:w-72 flex-col border-r bg-card">
-      <div className="p-4 border-b">
+    <aside className="hidden md:flex md:w-48 lg:w-52 flex-col border-r bg-card">
+      <div className="px-3 py-3 border-b">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">OF</span>
+          <div className="size-7 rounded-lg bg-primary flex items-center justify-center">
+            <span className="text-primary-foreground font-bold text-xs">OF</span>
           </div>
-          <span className="font-semibold text-lg">OptiFactory</span>
+          <span className="font-semibold text-base">OptiFactory</span>
         </Link>
       </div>
-      <ScrollArea className="flex-1 py-2">
-        <nav className="space-y-1 px-3">
+      <ScrollArea className="flex-1 py-1">
+        <nav className="space-y-0.5 px-2">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
@@ -47,11 +47,11 @@ export function Sidebar() {
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full justify-start gap-3 font-normal",
+                    "w-full justify-start gap-2 px-2 py-1.5 font-normal",
                     isActive && "font-medium"
                   )}
                 >
-                  <Icon className="size-4" />
+                  <Icon className="size-3.5" />
                   {item.label}
                 </Button>
               </Link>
@@ -59,7 +59,7 @@ export function Sidebar() {
           })}
         </nav>
       </ScrollArea>
-      <div className="p-3 border-t text-xs text-muted-foreground text-center">
+      <div className="px-2 py-2 border-t text-xs text-muted-foreground text-center">
         v1.0
       </div>
     </aside>
@@ -93,7 +93,7 @@ export function MobileNav() {
                     variant={isActive ? "secondary" : "ghost"}
                     className="w-full justify-start gap-3 font-normal"
                   >
-                    <Icon className="size-4" />
+                  <Icon className="size-3.5" />
                     {item.label}
                   </Button>
                 </Link>
