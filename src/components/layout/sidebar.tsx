@@ -32,8 +32,8 @@ export function Sidebar() {
     <aside className="hidden md:flex md:w-40 lg:w-44 flex-col border-r bg-card">
       <div className="px-3 py-3 border-b">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="size-7 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
-            <Image src="/logo.png" alt="OptiFactory" width={28} height={28} className="object-cover" />
+          <div className="size-7 overflow-hidden">
+            <Image src="/logo.png" alt="OptiFactory" width={28} height={28} className="object-contain" />
           </div>
           <span className="font-semibold text-base">OptiFactory</span>
         </Link>
