@@ -23,7 +23,7 @@ export function InfoTooltip({ text }: InfoTooltipProps) {
     <>
       <span
         ref={triggerRef}
-        className="inline-flex items-center justify-center size-5 rounded-full border border-muted-foreground/50 text-muted-foreground/70 text-[11px] cursor-help leading-none font-semibold hover:border-muted-foreground hover:text-muted-foreground transition-colors select-none shrink-0"
+        className="grid place-items-center size-6 min-w-6 min-h-6 max-w-6 max-h-6 rounded-full border border-muted-foreground/50 text-muted-foreground/70 text-xs cursor-help font-semibold hover:border-muted-foreground hover:text-muted-foreground transition-colors select-none shrink-0 leading-none overflow-hidden"
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
       >
