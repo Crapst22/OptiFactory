@@ -29,7 +29,6 @@ import {
   Cpu,
   DollarSign,
   GitBranch,
-  GitCompare,
   Info,
   Play,
   Settings2,
@@ -261,10 +260,6 @@ export default function SolvePage() {
           <Button onClick={() => runSolve(true)} variant="secondary" className="gap-2">
             <StepForward className="h-4 w-4" />
             Paso a Paso
-          </Button>
-          <Button onClick={() => router.push("/comparison")} variant="outline" className="gap-2">
-            <GitCompare className="h-4 w-4" />
-            Comparar
           </Button>
           <Button onClick={() => router.push("/sensitivity")} variant="outline" className="gap-2">
             <BarChart3 className="h-4 w-4" />
