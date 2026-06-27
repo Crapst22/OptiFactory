@@ -14,8 +14,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { useConfig } from "@/hooks/use-config"
-import { ViewModeToggle } from "@/components/shared/view-mode-toggle"
 
 const navItems = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
@@ -28,7 +26,6 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { config } = useConfig()
 
   return (
     <aside className="hidden md:flex md:w-64 lg:w-72 flex-col border-r bg-card">
@@ -62,9 +59,6 @@ export function Sidebar() {
           })}
         </nav>
       </ScrollArea>
-      <div className="p-4 border-t">
-        <ViewModeToggle />
-      </div>
     </aside>
   )
 }

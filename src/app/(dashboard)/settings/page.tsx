@@ -31,7 +31,7 @@ import {
   Eye,
   Save,
 } from "lucide-react"
-import type { SolveMethod, ViewMode } from "@/types"
+import type { SolveMethod } from "@/types"
 
 const methods: { value: SolveMethod; label: string }[] = [
   { value: "AUTO", label: "Automático" },
@@ -274,64 +274,6 @@ export default function SettingsPage() {
                   updateConfig({ animations: checked })
                 }
               />
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div variants={item}>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center">
-                <Eye className="size-5 text-rose-500" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Modo de Vista</CardTitle>
-                <CardDescription>
-                  Alterna entre modo estudiante y profesional
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Vista</Label>
-                <p className="text-xs text-muted-foreground">
-                  {config.viewMode === "student"
-                    ? "Modo Estudiante — explicaciones detalladas"
-                    : "Modo Profesional — resultados directos"}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span
-                  className={`text-sm ${
-                    config.viewMode === "student"
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  Estudiante
-                </span>
-                <Switch
-                  checked={config.viewMode === "professional"}
-                  onCheckedChange={(checked: boolean) =>
-                    updateConfig({
-                      viewMode: (checked ? "professional" : "student") as ViewMode,
-                    })
-                  }
-                />
-                <span
-                  className={`text-sm ${
-                    config.viewMode === "professional"
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  Profesional
-                </span>
-              </div>
             </div>
           </CardContent>
         </Card>

@@ -3,7 +3,6 @@ export type SolveMethod = "GRAPHICAL" | "SIMPLEX" | "DUAL_SIMPLEX" | "BIG_M" | "
 export type VariableType = "positive" | "integer" | "binary" | "free"
 export type Difficulty = "BEGINNER" | "INTERMEDIATE" | "ADVANCED"
 export type Operator = "<=" | ">=" | "="
-export type ViewMode = "student" | "professional"
 
 export interface ProblemData {
   id?: string
@@ -108,7 +107,6 @@ export interface AppConfig {
   precision: number
   defaultMethod: SolveMethod
   animations: boolean
-  viewMode: ViewMode
   autoDetectMethod: boolean
 }
 

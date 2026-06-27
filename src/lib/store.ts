@@ -1,4 +1,4 @@
-import { AppConfig, Exercise, ProblemData, SimplexResult, SolveMethod, ViewMode } from "@/types"
+import { AppConfig, Exercise, ProblemData, SimplexResult, SolveMethod } from "@/types"
 
 const defaultConfig: AppConfig = {
   theme: "light",
@@ -6,7 +6,6 @@ const defaultConfig: AppConfig = {
   precision: 4,
   defaultMethod: "AUTO",
   animations: true,
-  viewMode: "student",
   autoDetectMethod: true,
 }
 

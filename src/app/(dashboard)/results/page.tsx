@@ -31,7 +31,6 @@ import {
   XCircle,
 } from "lucide-react"
 import { getCurrentResult } from "@/lib/store"
-import { useConfig } from "@/hooks/use-config"
 import { formatNumber } from "@/utils/format"
 import type { SimplexResult } from "@/types"
 
@@ -75,7 +74,6 @@ function formatTime(ms: number): string {
 
 export default function ResultsPage() {
   const result: SimplexResult | null = getCurrentResult()
-  const { config } = useConfig()
 
   if (!result) {
     return (
@@ -156,9 +154,6 @@ export default function ResultsPage() {
               <TableRow>
                 <TableHead>Variable</TableHead>
                 <TableHead>Valor</TableHead>
-                {config.viewMode === "professional" && (
-                  <TableHead>Reducido</TableHead>
-                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -166,16 +161,11 @@ export default function ResultsPage() {
                 <TableRow key={key}>
                   <TableCell className="font-medium">{key}</TableCell>
                   <TableCell>{formatNumber(value)}</TableCell>
-                  {config.viewMode === "professional" && (
-                    <TableCell className="text-muted-foreground text-xs">
-                      —
-                    </TableCell>
-                  )}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          {config.viewMode === "student" && variableEntries.length > 0 && (
+          {variableEntries.length > 0 && (
             <p className="text-xs text-muted-foreground mt-3">
               Estos son los valores que deben tomar las variables para alcanzar el valor óptimo.
             </p>
@@ -195,37 +185,6 @@ export default function ResultsPage() {
             <p className="text-sm text-muted-foreground">
               No hay información de recursos disponible.
             </p>
-          ) : config.viewMode === "professional" ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Restricción</TableHead>
-                  <TableHead>Slack</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {slackEntries.map(([key, value]) => (
-                  <TableRow key={key}>
-                    <TableCell className="font-medium">
-                      {key.replace("H", "Restricción ")}
-                    </TableCell>
-                    <TableCell>{formatNumber(value)}</TableCell>
-                    <TableCell>
-                      {Math.abs(value) < 1e-10 ? (
-                        <Badge variant="destructive" className="text-xs">
-                          Vinculante
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">
-                          No vinculante
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           ) : (
             <div className="space-y-3">
               {slackEntries.map(([key, value]) => {
@@ -277,16 +236,12 @@ export default function ResultsPage() {
                 </Badge>
               ))}
               <p className="w-full text-sm text-muted-foreground mt-3">
-                {config.viewMode === "professional"
-                  ? "Las restricciones vinculantes son aquellas que limitan activamente la solución. Un cambio en sus términos independientes afectaría directamente el valor óptimo."
-                  : "Estas restricciones limitan activamente la solución. Si alguna cambiara, el valor óptimo se vería afectado."}
+                Estas restricciones limitan activamente la solución. Si alguna cambiara, el valor óptimo se vería afectado.
               </p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {config.viewMode === "professional"
-                ? "No se identificaron restricciones vinculantes en la solución actual."
-                : "Ninguna restricción está limitando activamente la solución."}
+              Ninguna restricción está limitando activamente la solución.
             </p>
           )}
         </CardContent>
@@ -387,16 +342,6 @@ export default function ResultsPage() {
                 {bindingConstraints.length}
               </span>
             </div>
-            {config.viewMode === "professional" && (
-              <div className="flex justify-between py-1 border-b">
-                <span className="text-muted-foreground">
-                  Recursos (Slack)
-                </span>
-                <span className="font-semibold">
-                  {slackEntries.length}
-                </span>
-              </div>
-            )}
             <div className="flex justify-between py-1 border-b">
               <span className="text-muted-foreground">Método</span>
               <span className="font-semibold">

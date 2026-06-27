@@ -6,7 +6,6 @@ export const defaultConfig: AppConfig = {
   precision: 4,
   defaultMethod: "AUTO",
   animations: true,
-  viewMode: "student",
   autoDetectMethod: true,
 }
 

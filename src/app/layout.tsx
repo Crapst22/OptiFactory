@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
-import { Outfit, JetBrains_Mono } from "next/font/google"
+import { Dongle, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/layout/theme-provider"
 import { Toaster } from "sonner"
 
-const outfitSans = Outfit({
-  variable: "--font-outfit-sans",
+const dongleSans = Dongle({
+  variable: "--font-dongle-sans",
+  weight: ["300", "400", "700"],
   subsets: ["latin"],
 })
 
@@ -25,7 +26,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className={`${outfitSans.variable} ${jetbrainsMono.variable} h-full antialiased`}>
+      <body className={`${dongleSans.variable} ${jetbrainsMono.variable} h-full antialiased`}>
         <ThemeProvider>
           <div className="min-h-full flex flex-col">
             {children}
