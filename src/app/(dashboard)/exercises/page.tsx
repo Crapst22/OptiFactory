@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { BookOpen, BarChart3, Lightbulb, ArrowRight, Trash2 } from "lucide-react"
+import { BookOpen, BarChart3, Lightbulb, ArrowRight, Trash2, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -168,6 +168,7 @@ export default function ExercisesPage() {
   const [activeTab, setActiveTab] = useState<Difficulty>("BEGINNER")
   const [solutionsVisible, setSolutionsVisible] = useState<Record<string, boolean>>({})
   const [stepsVisible, setStepsVisible] = useState<Record<string, boolean>>({})
+  const [paramsVisible, setParamsVisible] = useState<Record<string, boolean>>({})
   const [savedExercises, setSavedExercises] = useState<Exercise[]>([])
 
   useEffect(() => {
@@ -180,6 +181,10 @@ export default function ExercisesPage() {
 
   const toggleSteps = (id: string) => {
     setStepsVisible((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const toggleParams = (id: string) => {
+    setParamsVisible((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
   const handleSolve = (ex: Exercise) => {
@@ -284,20 +289,44 @@ export default function ExercisesPage() {
                         </CardHeader>
 
                         <CardContent className="space-y-6">
-                          <div className="rounded-lg border bg-muted/30 p-4 space-y-2 font-mono text-sm">
-                            <p className="font-semibold text-foreground">
-                              {formatObjective(ex.objective, ex.problemType, vars)}
-                            </p>
-                            <p className="text-muted-foreground">Sujeto a:</p>
-                            {ex.constraints.map((c, i) => (
-                              <p key={i} className="text-foreground/85">
-                                {formatConstraint(c.coefficients, c.operator, c.value, vars)}
-                              </p>
-                            ))}
-                            <p className="text-muted-foreground">
-                              {vars.map((v) => `${v} ≥ 0`).join(", ")}
-                            </p>
-                          </div>
+                          {!paramsVisible[ex.id] && (
+                            <Button
+                              variant="outline"
+                              className="gap-2 w-full"
+                              onClick={() => toggleParams(ex.id)}
+                            >
+                              <Eye className="size-4" />
+                              Revelar Parámetros
+                            </Button>
+                          )}
+
+                          {paramsVisible[ex.id] && (
+                            <div className="space-y-2">
+                              <div className="rounded-lg border bg-muted/30 p-4 space-y-2 font-mono text-sm">
+                                <p className="font-semibold text-foreground">
+                                  {formatObjective(ex.objective, ex.problemType, vars)}
+                                </p>
+                                <p className="text-muted-foreground">Sujeto a:</p>
+                                {ex.constraints.map((c, i) => (
+                                  <p key={i} className="text-foreground/85">
+                                    {formatConstraint(c.coefficients, c.operator, c.value, vars)}
+                                  </p>
+                                ))}
+                                <p className="text-muted-foreground">
+                                  {vars.map((v) => `${v} ≥ 0`).join(", ")}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => toggleParams(ex.id)}
+                              >
+                                <EyeOff className="size-4" />
+                                Ocultar Parámetros
+                              </Button>
+                            </div>
+                          )}
 
                           {showSol && (
                             <motion.div

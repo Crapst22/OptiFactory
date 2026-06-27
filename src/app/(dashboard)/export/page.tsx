@@ -121,12 +121,8 @@ export default function ExportPage() {
 
   useEffect(() => {
     const stored = getSavedProblems()
-    const withResults = stored.filter((p) => {
-      const saved = localStorage.getItem(`${STORAGE_KEY}-${p.title}`)
-      return saved !== null
-    })
-    setProblems(withResults)
-    if (withResults.length > 0) setSelectedTitle(withResults[0].title)
+    setProblems(stored)
+    if (stored.length > 0) setSelectedTitle(stored[0].title)
   }, [])
 
   const selectedProblem = problems.find((p) => p.title === selectedTitle) ?? null
@@ -351,14 +347,29 @@ export default function ExportPage() {
             </CardContent>
           </Card>
 
-          {result && (
-            <div className="grid sm:grid-cols-2 gap-4">
-              {exportOptions.map((opt) => {
-                const Icon = opt.icon
-                const isLoading = exporting === opt.id
-                const isPlaceholder = opt.id === "excel" || opt.id === "image"
+          {selectedProblem && (
+            <>
+              {!result && (
+                <Card>
+                  <CardContent className="flex flex-col items-center text-center py-8 gap-3">
+                    <FileText className="size-10 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Sin resultados</p>
+                      <p className="text-sm text-muted-foreground">
+                        Resuelve el problema primero para poder exportar los resultados.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              {result && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {exportOptions.map((opt) => {
+                    const Icon = opt.icon
+                    const isLoading = exporting === opt.id
+                    const isPlaceholder = opt.id === "excel" || opt.id === "image"
 
-                return (
+                    return (
                   <Card
                     key={opt.id}
                     className="relative overflow-hidden transition-shadow hover:shadow-md"
@@ -410,6 +421,8 @@ export default function ExportPage() {
           )}
         </>
       )}
-    </motion.div>
+    </>
+  )}
+</motion.div>
   )
 }
