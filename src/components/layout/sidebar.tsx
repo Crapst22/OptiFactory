@@ -59,6 +59,9 @@ export function Sidebar() {
           })}
         </nav>
       </ScrollArea>
+      <div className="p-3 border-t text-xs text-muted-foreground text-center">
+        v1.0
+      </div>
     </aside>
   )
 }

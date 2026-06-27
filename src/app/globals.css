@@ -125,6 +125,6 @@
     @apply bg-background text-foreground font-sans;
   }
   html {
-    font-size: 20px;
+    font-size: 22px;
   }
 }
