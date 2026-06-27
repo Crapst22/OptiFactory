@@ -30,7 +30,7 @@ export default function ProblemsPage() {
 
   const handleLoad = (p: ProblemData) => {
     setCurrentProblem(p)
-    router.push("/solve")
+    router.push("/solve?solve=1")
   }
 
   const handleDelete = (title: string) => {

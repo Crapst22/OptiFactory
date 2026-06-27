@@ -148,6 +148,13 @@ export default function SolvePage() {
     }
   }, [])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("solve") === "1") {
+      runSolve(false)
+    }
+  }, [runSolve])
+
   const nextStep = useCallback(() => {
     setCurrentStepIndex((prev) => Math.min(prev + 1, steps.length - 1))
   }, [steps.length])
@@ -172,10 +179,6 @@ export default function SolvePage() {
           <Button onClick={() => runSolve(false)} disabled={loading} className="gap-2">
             <Play className="h-4 w-4" />
             Resolver
-          </Button>
-          <Button onClick={() => runSolve(true)} disabled={loading} variant="secondary" className="gap-2">
-            <StepForward className="h-4 w-4" />
-            Paso a Paso
           </Button>
           <Button onClick={() => runSolve(false)} disabled={loading} variant="outline" className="gap-2">
             <Zap className="h-4 w-4" />
