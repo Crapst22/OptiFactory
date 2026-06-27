@@ -11,17 +11,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { useProblem } from "@/hooks/use-problem"
 import { setCurrentProblem, setCurrentResult, saveProblem } from "@/lib/store"
 import { solveProblem } from "@/services/simplex"
 import { ProblemType, SolveMethod, VariableType, ConstraintRow } from "@/types"
-import { Plus, Trash2, Copy, ArrowRight, Calculator, Brain } from "lucide-react"
+import { Plus, Trash2, Copy, ArrowRight, Calculator, Brain, Sparkles } from "lucide-react"
 import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { AiChat } from "@/components/ai-chat"
 
 export default function NewProblemPage() {
   const router = useRouter()
+  const [chatOpen, setChatOpen] = useState(false)
   const {
     problem,
     setTitle,
@@ -73,6 +76,38 @@ export default function NewProblemPage() {
           Define el modelo de programación lineal
         </p>
       </div>
+
+      <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+        <DialogTrigger render={<Button variant="outline" className="w-full gap-2 h-12 text-base" />}>
+          <Sparkles className="size-5 text-primary" />
+          Asistente IA — describe tu problema en lenguaje natural
+        </DialogTrigger>
+        <DialogContent className="max-w-2xl h-[600px] p-0 flex flex-col">
+          <AiChat
+            onApplyProblem={(parsed) => {
+              if (parsed.title) setTitle(parsed.title)
+              if (parsed.problemType) setProblemType(parsed.problemType)
+              if (parsed.variables) setVariables(parsed.variables)
+              if (parsed.constraints) setConstraints(parsed.constraints)
+              if (parsed.objective) {
+                parsed.objective.forEach((coeff, i) => setObjective(i, coeff))
+              }
+              if (parsed.constraintsData) {
+                parsed.constraintsData.forEach((row, i) => {
+                  row.coefficients.forEach((coeff, j) => setConstraintCoefficient(i, j, coeff))
+                  setConstraintOperator(i, row.operator)
+                  setConstraintValue(i, row.value)
+                })
+              }
+              if (parsed.variableTypes) {
+                parsed.variableTypes.forEach((type, i) => setVariableType(i, type))
+              }
+              setChatOpen(false)
+              toast.success("Parámetros aplicados correctamente")
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
