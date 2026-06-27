@@ -206,8 +206,18 @@ export default function SensitivityPage() {
                       <InfoTooltip text="Cuánto puede aumentar el valor de la variable sin cambiar la solución óptima." />
                     </span>
                   </TableHead>
-                  <TableHead>Rango</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Rango
+                      <InfoTooltip text="El rango de valores que puede tomar el coeficiente de la variable sin afectar la solución óptima." />
+                    </span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Estado
+                      <InfoTooltip text="Indica si la variable pertenece a la solución óptima (su valor es distinto de 0)." />
+                    </span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -233,11 +243,11 @@ export default function SensitivityPage() {
                         {coeff.isBasic ? (
                           <Badge variant="default" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
                             <CheckCircle2 className="size-3 mr-1" />
-                            Básica
+                            SÍ
                           </Badge>
                         ) : (
                           <Badge variant="secondary">
-                            No básica
+                            NO
                           </Badge>
                         )}
                       </TableCell>
@@ -269,29 +279,39 @@ export default function SensitivityPage() {
                   <TableHead>
                     <span className="inline-flex items-center gap-1">
                       Valor Actual (RHS)
-                      <InfoTooltip text="El valor actual del lado derecho de la restricción (recurso disponible)." />
+                      <InfoTooltip text="Cantidad de recurso disponible actualmente." />
                     </span>
                   </TableHead>
                   <TableHead>
                     <span className="inline-flex items-center gap-1">
                       Disminución Permisible
-                      <InfoTooltip text="Cuánto puede disminuir el RHS sin cambiar la base óptima." />
+                      <InfoTooltip text="Cuánto puede disminuir este recurso sin que la solución óptima cambie." />
                     </span>
                   </TableHead>
                   <TableHead>
                     <span className="inline-flex items-center gap-1">
                       Aumento Permisible
-                      <InfoTooltip text="Cuánto puede aumentar el RHS sin cambiar la base óptima." />
+                      <InfoTooltip text="Cuánto puede aumentar este recurso sin que la solución óptima cambie." />
                     </span>
                   </TableHead>
-                  <TableHead>Rango</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Rango
+                      <InfoTooltip text="El rango de valores en el que puede variar la cantidad de recurso sin afectar la solución óptima." />
+                    </span>
+                  </TableHead>
                   <TableHead>
                     <span className="inline-flex items-center gap-1">
                       Precio Sombra
-                      <InfoTooltip text="Cambio en el valor óptimo por unidad adicional de este recurso." />
+                      <InfoTooltip text="El valor económico de tener una unidad adicional de este recurso." />
                     </span>
                   </TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Estado
+                      <InfoTooltip text="Indica si el recurso se consume en su totalidad y limita la solución actual." />
+                    </span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -326,12 +346,12 @@ export default function SensitivityPage() {
                         {c.isBinding ? (
                           <Badge variant="default" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
                             <AlertTriangle className="size-3 mr-1" />
-                            Activa
+                            SÍ
                           </Badge>
                         ) : (
                           <Badge variant="secondary">
                             <Minus className="size-3 mr-1" />
-                            Inactiva
+                            NO
                           </Badge>
                         )}
                       </TableCell>
