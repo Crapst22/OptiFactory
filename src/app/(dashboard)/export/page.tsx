@@ -1,7 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
-import Link from "next/link"
+import { useCallback, useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import {
   Card,
@@ -12,17 +11,21 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
 import {
   FileDown,
   FileText,
   FileSpreadsheet,
   FileImage,
   Download,
-  CheckCircle2,
+  ChevronRight,
 } from "lucide-react"
-import { getCurrentProblem, getCurrentResult } from "@/lib/store"
+import { getSavedProblems } from "@/lib/store"
 import { formatNumber } from "@/utils/format"
 import type { ProblemData, SimplexResult } from "@/types"
+
+const STORAGE_KEY = "optifactory-results"
 
 interface ExportOption {
   id: string
@@ -112,13 +115,35 @@ function downloadCSV(csv: string, filename: string) {
 }
 
 export default function ExportPage() {
+  const [problems, setProblems] = useState<ProblemData[]>([])
+  const [selectedTitle, setSelectedTitle] = useState<string | null>(null)
   const [exporting, setExporting] = useState<string | null>(null)
 
-  const problem: ProblemData | null = getCurrentProblem()
-  const result: SimplexResult | null = getCurrentResult()
+  useEffect(() => {
+    const stored = getSavedProblems()
+    const withResults = stored.filter((p) => {
+      const saved = localStorage.getItem(`${STORAGE_KEY}-${p.title}`)
+      return saved !== null
+    })
+    setProblems(withResults)
+    if (withResults.length > 0) setSelectedTitle(withResults[0].title)
+  }, [])
+
+  const selectedProblem = problems.find((p) => p.title === selectedTitle) ?? null
+
+  const getResult = (problemTitle: string): SimplexResult | null => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}-${problemTitle}`)
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  }
+
+  const result = selectedTitle ? getResult(selectedTitle) : null
 
   const handleExportPDF = useCallback(async () => {
-    if (!problem || !result) return
+    if (!selectedProblem || !result) return
     setExporting("pdf")
     try {
       const { default: jsPDF } = await import("jspdf")
@@ -131,22 +156,22 @@ export default function ExportPage() {
       y += 12
 
       doc.setFontSize(11)
-      doc.text(`Título: ${problem.title}`, 14, y)
+      doc.text(`Título: ${selectedProblem.title}`, 14, y)
       y += 7
       doc.text(
-        `Tipo: ${problem.problemType === "MAX" ? "Maximización" : "Minimización"}`,
+        `Tipo: ${selectedProblem.problemType === "MAX" ? "Maximización" : "Minimización"}`,
         14,
         y,
       )
       y += 7
-      doc.text(`Método: ${problem.method}`, 14, y)
+      doc.text(`Método: ${selectedProblem.method}`, 14, y)
       y += 10
 
       doc.setFontSize(14)
       doc.text("Función Objetivo", 14, y)
       y += 8
       doc.setFontSize(10)
-      const objStr = problem.objective
+      const objStr = selectedProblem.objective
         .map((c, i) => `${c >= 0 ? "+" : ""}${c}x${i + 1}`)
         .join(" ")
       doc.text(`Z = ${objStr.replace(/^\+/, "")}`, 14, y)
@@ -156,7 +181,7 @@ export default function ExportPage() {
       doc.text("Restricciones", 14, y)
       y += 8
       doc.setFontSize(10)
-      for (const row of problem.constraintsData) {
+      for (const row of selectedProblem.constraintsData) {
         const rowStr =
           row.coefficients
             .map((c, i) => `${c >= 0 ? "+" : ""}${c}x${i + 1}`)
@@ -216,11 +241,10 @@ export default function ExportPage() {
 
       doc.save(`informe-optimizacion-${Date.now()}.pdf`)
     } catch {
-      // fallback
     } finally {
       setExporting(null)
     }
-  }, [problem, result])
+  }, [selectedProblem, result])
 
   const handleExportCSV = useCallback(() => {
     if (!result) return
@@ -250,13 +274,20 @@ export default function ExportPage() {
     image: handleExportImage,
   }
 
-  if (!problem || !result) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-xl mx-auto mt-12"
-      >
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto space-y-6"
+    >
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Exportar</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Selecciona un problema resuelto y el formato de exportación
+        </p>
+      </div>
+
+      {problems.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center text-center py-16 gap-4">
             <FileDown className="size-12 text-muted-foreground" />
@@ -269,101 +300,116 @@ export default function ExportPage() {
                 problema primero para poder exportar los resultados.
               </p>
             </div>
-            <Link
-              href="/solve"
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Ir a resolver
-            </Link>
           </CardContent>
         </Card>
-      </motion.div>
-    )
-  }
+      ) : (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Seleccionar Problema</CardTitle>
+              <CardDescription>
+                Elige el problema que deseas exportar
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={selectedTitle ?? undefined}
+                onValueChange={setSelectedTitle}
+                className="space-y-2"
+              >
+                {problems.map((p) => {
+                  const r = getResult(p.title)
+                  return (
+                    <Label
+                      key={p.title}
+                      className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-colors hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
+                        selectedTitle === p.title ? "border-primary bg-primary/5" : ""
+                      }`}
+                    >
+                      <RadioGroupItem value={p.title} className="mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">{p.title}</p>
+                          {r && (
+                            <Badge variant="outline" className="text-xs shrink-0">
+                              {statusLabels[r.status] ?? r.status}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {p.problemType === "MAX" ? "Maximización" : "Minimización"}
+                          {" — "}
+                          {p.variables} variables, {p.constraints} restricciones
+                          {r && ` — Z = ${formatNumber(r.optimalValue)}`}
+                        </p>
+                      </div>
+                      <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+                    </Label>
+                  )
+                })}
+              </RadioGroup>
+            </CardContent>
+          </Card>
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6"
-    >
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Exportar</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Exporta los resultados del problema en el formato que prefieras
-        </p>
-      </div>
+          {result && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {exportOptions.map((opt) => {
+                const Icon = opt.icon
+                const isLoading = exporting === opt.id
+                const isPlaceholder = opt.id === "excel" || opt.id === "image"
 
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="flex items-center gap-3 py-4">
-          <CheckCircle2 className="size-5 text-primary shrink-0" />
-          <div className="text-sm">
-            <span className="font-medium">Problema: {problem.title}</span>
-            <span className="text-muted-foreground">
-              {" — "}Valor óptimo: {formatNumber(result.optimalValue)}
-            </span>
-            <Badge variant="outline" className="ml-2 text-xs">
-              {statusLabels[result.status] ?? result.status}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid sm:grid-cols-2 gap-4">
-        {exportOptions.map((opt) => {
-          const Icon = opt.icon
-          const isLoading = exporting === opt.id
-          const isPlaceholder = opt.id === "excel" || opt.id === "image"
-
-          return (
-            <Card
-              key={opt.id}
-              className="relative overflow-hidden transition-shadow hover:shadow-md"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-lg bg-primary/10 p-2">
-                      <Icon className="size-5 text-primary" />
-                    </div>
-                    <CardTitle className="text-lg">{opt.title}</CardTitle>
-                  </div>
-                  {isPlaceholder && (
-                    <Badge variant="secondary" className="text-xs">
-                      Próximamente
-                    </Badge>
-                  )}
-                </div>
-                <CardDescription className="text-xs mt-2">
-                  {opt.formats}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  {opt.description}
-                </p>
-                <Button
-                  className="w-full gap-2"
-                  variant={isPlaceholder ? "outline" : "default"}
-                  disabled={isLoading || isPlaceholder}
-                  onClick={handlers[opt.id]}
-                >
-                  {isLoading ? (
-                    <span className="size-4 animate-pulse rounded-full bg-current" />
-                  ) : (
-                    <Download className="size-4" />
-                  )}
-                  {isLoading
-                    ? "Exportando..."
-                    : isPlaceholder
-                      ? "No disponible"
-                      : `Exportar como ${opt.title}`}
-                </Button>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+                return (
+                  <Card
+                    key={opt.id}
+                    className="relative overflow-hidden transition-shadow hover:shadow-md"
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="rounded-lg bg-primary/10 p-2">
+                            <Icon className="size-5 text-primary" />
+                          </div>
+                          <CardTitle className="text-lg">{opt.title}</CardTitle>
+                        </div>
+                        {isPlaceholder && (
+                          <Badge variant="secondary" className="text-xs">
+                            Próximamente
+                          </Badge>
+                        )}
+                      </div>
+                      <CardDescription className="text-xs mt-2">
+                        {opt.formats}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        {opt.description}
+                      </p>
+                      <Button
+                        className="w-full gap-2"
+                        variant={isPlaceholder ? "outline" : "default"}
+                        disabled={isLoading || isPlaceholder}
+                        onClick={handlers[opt.id]}
+                      >
+                        {isLoading ? (
+                          <span className="size-4 animate-pulse rounded-full bg-current" />
+                        ) : (
+                          <Download className="size-4" />
+                        )}
+                        {isLoading
+                          ? "Exportando..."
+                          : isPlaceholder
+                            ? "No disponible"
+                            : `Exportar como ${opt.title}`}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
     </motion.div>
   )
 }

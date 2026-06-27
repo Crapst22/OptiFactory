@@ -49,6 +49,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogClose,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -612,16 +613,12 @@ function getConstraintLabel(index: number): string {
 function ParamControl({
   label,
   value,
-  min,
-  max,
   step,
   onChange,
   icon: Icon,
 }: {
   label: string
   value: number
-  min: number
-  max: number
   step: number
   onChange: (v: number) => void
   icon?: React.ElementType
@@ -638,8 +635,7 @@ function ParamControl({
             variant="outline"
             size="icon"
             className="size-7 shrink-0"
-            onClick={() => onChange(Math.max(min, +(value - step).toFixed(4)))}
-            disabled={value <= min}
+            onClick={() => onChange(+(value - step).toFixed(4))}
           >
             <Minus className="size-3" />
           </Button>
@@ -648,7 +644,7 @@ function ParamControl({
             value={value}
             onChange={(e) => {
               const v = parseFloat(e.target.value)
-              if (!isNaN(v)) onChange(Math.min(max, Math.max(min, v)))
+              if (!isNaN(v)) onChange(v)
             }}
             className="w-20 h-8 text-center text-sm tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
@@ -656,20 +652,12 @@ function ParamControl({
             variant="outline"
             size="icon"
             className="size-7 shrink-0"
-            onClick={() => onChange(Math.min(max, +(value + step).toFixed(4)))}
-            disabled={value >= max}
+            onClick={() => onChange(+(value + step).toFixed(4))}
           >
             <Plus className="size-3" />
           </Button>
         </div>
       </div>
-      <Slider
-        value={[value]}
-        min={min}
-        max={max}
-        step={step}
-        onValueChange={(value) => { const v = Array.isArray(value) ? value[0] : value; onChange(v) }}
-      />
     </div>
   )
 }
@@ -758,8 +746,6 @@ function ParametersDialog({
                 key={`obj-${i}`}
                 label={`Producto ${i + 1} (x${i + 1})`}
                 value={coef}
-                min={-100}
-                max={100}
                 step={1}
                 onChange={(v) => updateObjective(i, v)}
                 icon={DollarSign}
@@ -785,8 +771,6 @@ function ParametersDialog({
                 key={`cost-${i}`}
                 label={`Costo Producto ${i + 1} (x${i + 1})`}
                 value={0}
-                min={0}
-                max={100}
                 step={1}
                 onChange={() => {}}
                 icon={TrendingDown}
@@ -833,8 +817,6 @@ function ParametersDialog({
                   <ParamControl
                     label="Valor del recurso"
                     value={c.value}
-                    min={0}
-                    max={1000}
                     step={1}
                     onChange={(v) => updateConstraintValue(i, v)}
                   />
@@ -855,20 +837,16 @@ function ParametersDialog({
           </div>
         </div>
         <div className="flex justify-end gap-3 pt-2 border-t">
-          <DialogTrigger
+          <DialogClose
             render={<Button variant="outline" />}
           >
             Cancelar
-          </DialogTrigger>
-          <DialogTrigger
-            render={
-              <Button onClick={() => onResolve(local)}>
-                Aplicar y Re-resolver
-              </Button>
-            }
+          </DialogClose>
+          <DialogClose
+            render={<Button onClick={() => onResolve(local)} />}
           >
             Aplicar y Re-resolver
-          </DialogTrigger>
+          </DialogClose>
         </div>
       </DialogContent>
     </Dialog>
