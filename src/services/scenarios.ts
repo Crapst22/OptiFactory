@@ -8,16 +8,6 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-function scaleTo(vars: number, arr: number[]): number[] {
-  return Array.from({ length: vars }, (_, i) => arr[i] ?? arr[arr.length - 1])
-}
-
-function edgeCase(products: string[]): string[] {
-  if (products.length < 3) return products
-  const shuffled = [...products].sort(() => Math.random() - 0.5)
-  return shuffled
-}
-
 // ============================================================
 // Scenario 1: Carpintería (Woodworking)
 // ============================================================
@@ -29,10 +19,10 @@ function generateCarpinteria(
 ): { problem: ProblemData; narrative: string } {
   const allProducts = ["silla", "mesa", "estante", "armario", "cama"]
   const allResources = [
-    { name: "madera", unit: "m²", detail: "de madera" },
-    { name: "barniz", unit: "litros", detail: "de barniz" },
-    { name: "tornillos", unit: "unidades", detail: "tornillos" },
-    { name: "lija", unit: "pliegos", detail: "de lija" },
+    { name: "madera", unit: "m²" },
+    { name: "barniz", unit: "litros" },
+    { name: "tornillos", unit: "unidades" },
+    { name: "lija", unit: "pliegos" },
   ]
   const products = allProducts.slice(0, vars)
   const resources = allResources.slice(0, constraints)
@@ -52,12 +42,10 @@ function generateCarpinteria(
     value: values[i],
   }))
 
-  // hours constraint
   const hourCoeffs = Array.from({ length: vars }, () => randInt(2, 10))
   const hoursAvail = randInt(200, 800)
   constraintRows.push({ coefficients: hourCoeffs, operator: "<=", value: hoursAvail })
 
-  // ratio constraint (random)
   let ratioSentence = ""
   if (vars >= 2 && Math.random() > 0.5) {
     const [a, b] = [randInt(1, vars) - 1, randInt(1, vars) - 1].sort(() => Math.random() - 0.5)
@@ -69,38 +57,25 @@ function generateCarpinteria(
         operator: "<=",
         value: 0,
       })
-      ratioSentence = ` Por experiencia de ventas, por cada ${ratioA} ${products[a]}s se venden al menos ${ratioB} ${products[b]}s.`
+      ratioSentence = ` Por experiencia del dueño, por cada ${ratioA} ${products[a]}s que ingresan al taller se terminan vendiendo al menos ${ratioB} ${products[b]}s, por lo que la producción debe mantener esa proporción mínima.`
     }
   }
 
-  // building narrative
-  const productDescs = products.map((p, i) => {
-    const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} ${r.detail}`)
+  const consumos = products.map((p, i) => {
+    const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} de ${r.name}`)
     const time = hourCoeffs[i]
-    return `la ${p} requiere ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}, además de ${time} horas de trabajo`
+    return `cada ${p} requiere ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}, ocupando ${time} horas de trabajo`
   })
-  const productList = productDescs.slice(0, -1).join("; ") + "; y " + productDescs[productDescs.length - 1] + "."
 
-  const resourceAvails = resources.map(
-    (r, i) => `${values[i]} ${r.unit} ${r.detail}`,
-  )
-  const resourceStr = resourceAvails.slice(0, -1).join(", ") + " y " + resourceAvails[resourceAvails.length - 1]
-  const hoursStr = `${hoursAvail} horas de trabajo`
+  const margins = products.map((p, i) => `$${objective[i].toLocaleString()} por ${p}`)
 
-  const margin = problemType === "MAX" ? "utilidad" : "costo"
-  const marginUnit = problemType === "MAX" ? "ganancia" : "costo"
-  const marginLines = products
-    .map((p, i) => `la ${p} genera un${problemType === "MAX" ? "a" : ""} ${margin} de $${objective[i].toLocaleString()}`)
-  const marginStr = marginLines.slice(0, -1).join(", ") + " y " + marginLines[marginLines.length - 1] + "."
-
-  const goal = problemType === "MAX" ? "máximas ganancias" : "mínimos costos"
+  const resourceParts = resources.map((r, i) => `${values[i]} ${r.unit} de ${r.name}`)
 
   const narrative = [
-    `Un carpintero fabrica ${vars} tipos de muebles: ${products.join(", ")}. Para su elaboración, ${productList}`,
-    `Mensualmente dispone de ${resourceStr} y ${hoursStr}.`,
-    `El ${marginUnit} por unidad para ${marginStr}`,
-    ratioSentence,
-    `Determine cuántas unidades de cada tipo debe producir para obtener las ${goal} totales. Modele el problema.`,
+    `Un carpintero fabrica ${products[0]}s, ${products.slice(1, -1).join("s, ")}${products.length > 2 ? "s y " : " y "}${products[products.length - 1]}s. Para su elaboración, ${consumos.slice(0, -1).join("; ")}; y ${consumos[consumos.length - 1]}.`,
+    `El taller dispone mensualmente de ${resourceParts.slice(0, -1).join(", ")} y ${resourceParts[resourceParts.length - 1]}, además de ${hoursAvail} horas de mano de obra.` + ratioSentence,
+    `Los márgenes de ganancia son de ${margins.slice(0, -1).join(", ")} y ${margins[margins.length - 1]}.`,
+    `Modele el problema de programación lineal para ${problemType === "MAX" ? "maximizar la ganancia" : "minimizar el costo"} total mensual.`,
   ].join("\n\n")
 
   const problem: ProblemData = {
@@ -127,27 +102,23 @@ function generateCostura(
   problemType: "MAX" | "MIN",
 ): { problem: ProblemData; narrative: string } {
   const allProducts = ["camisa", "pantalón", "vestido", "chaqueta", "abrigo"]
-  const allResources = [
-    { name: "tela", unit: "metros", detail: "de tela" },
-    { name: "hilo", unit: "metros", detail: "de hilo", perUnit: 500, perUnitLabel: "rollo" },
-    { name: "botones", unit: "unidades", detail: "botones" },
-    { name: "cremalleras", unit: "unidades", detail: "cremalleras" },
-  ]
+  const resources = [
+    { name: "tela", unit: "metros" },
+    { name: "hilo", unit: "metros", perUnit: 500 },
+    { name: "botones", unit: "unidades" },
+    { name: "cremalleras", unit: "unidades" },
+  ].slice(0, constraints)
   const products = allProducts.slice(0, vars)
-  const resources = allResources.slice(0, constraints)
 
   const coeffs: number[][] = resources.map(() =>
-    Array.from({ length: vars }, () => {
-      if (resources.length > 2) return randInt(1, 8)
-      return randInt(100, 500)
-    }),
+    Array.from({ length: vars }, () => randInt(100, 500)),
   )
-  const values: number[] = resources.map((r, ri) => {
+  const values: number[] = resources.map((r) => {
     if (r.perUnit) {
       const rolls = randInt(10, 100)
       return rolls * r.perUnit
     }
-    return randInt(100, 2000)
+    return randInt(300, 3000)
   })
   const objective = Array.from({ length: vars }, () => randInt(12000, 80000))
 
@@ -163,11 +134,12 @@ function generateCostura(
     const hourCoeffs = Array.from({ length: vars }, () => randInt(1, 8))
     const hoursAvail = randInt(150, 600)
     constraintRows.push({ coefficients: hourCoeffs, operator: "<=", value: hoursAvail })
-    hoursSentence = `\n\nCada prenda requiere tiempo de confección: ${products.map((p, i) => `${p}: ${hourCoeffs[i]} horas`).join(", ")}. Mensualmente se dispone de ${hoursAvail} horas de trabajo.`
+    hoursSentence = ` Además, cada ${products[0]} requiere ${hourCoeffs[0]} horas de confección, cada ${products[Math.min(1, products.length - 1)]} ${hourCoeffs[Math.min(1, products.length - 1)]} horas${products.length > 2 ? `, y así sucesivamente` : ""}, y se dispone de ${hoursAvail} horas de taller al mes.`
   }
 
   if (vars >= 2 && Math.random() > 0.5) {
-    const [a, b] = [0, vars - 1]
+    const a = 0
+    const b = vars - 1
     const ratioA = randInt(2, 5)
     const ratioB = randInt(2, 5)
     constraintRows.push({
@@ -175,40 +147,31 @@ function generateCostura(
       operator: "<=",
       value: 0,
     })
-    ratioSentence = ` Por políticas de inventario, por cada ${ratioA} ${products[a]}s se deben producir al menos ${ratioB} ${products[b]}s.`
+    ratioSentence = ` Las políticas de inventario exigen que por cada ${ratioA} ${products[a]}s producidas deben fabricarse al menos ${ratioB} ${products[b]}s.`
   }
 
-  const productConsumption = products.map((p, i) => {
-    const parts = resources.map((r, ri) => {
-      if (r.perUnit) {
-        const perUnitVal = r.perUnit
-        const coeffVal = coeffs[ri][i]
-        const units = Math.ceil(coeffVal / perUnitVal)
-        return `${coeffVal} metros de ${r.name} (${units} ${r.perUnitLabel}${units > 1 ? "s" : ""} de ${perUnitVal}m)`
-      }
-      return `${coeffs[ri][i]} ${r.unit} ${r.detail}`
-    })
-    return `${p}: ${parts.join(", ")}`
-  }).join(";\n")
+  const consumoParts = products.map((p, i) => {
+    const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} de ${r.name}`)
+    return `${p} necesita ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`
+  })
 
-  const resourceTotal = resources.map((r, i) => {
+  let resourceLine = ""
+  const resParts = resources.map((r, i) => {
     if (r.perUnit) {
       const units = Math.ceil(values[i] / r.perUnit)
-      return `${units} ${r.perUnitLabel}s de ${r.name} (${values[i].toLocaleString()} metros)`
+      return `${units} rollos de ${r.name} (${values[i].toLocaleString()} metros en total)`
     }
-    return `${values[i].toLocaleString()} ${r.unit} ${r.detail}`
-  }).join(", ")
+    return `${values[i].toLocaleString()} ${r.unit} de ${r.name}`
+  })
+  resourceLine = resParts.slice(0, -1).join(", ") + " y " + resParts[resParts.length - 1]
 
-  const margin = problemType === "MAX" ? "ganancia" : "costo"
-  const margins = products.map((p, i) => `${p}: $${objective[i].toLocaleString()}`).join(", ")
-
-  const goal = problemType === "MAX" ? "maximizar las ganancias" : "minimizar los costos"
+  const margins = products.map((p, i) => `$${objective[i].toLocaleString()} por ${p}`)
 
   const narrative = [
-    `Un taller de costura produce ${vars} tipos de prendas: ${products.join(", ")}. Cada prenda requiere ciertos insumos:\n${productConsumption}.`,
-    `Mensualmente el taller dispone de ${resourceTotal}.` + hoursSentence + ratioSentence,
-    `El ${margin} por unidad es: ${margins}.`,
-    `El objetivo es ${goal} totales. Modele el problema de programación lineal.`,
+    `Un taller de confección produce ${products.join(", ")}. Los insumos requeridos son los siguientes: ${consumoParts.slice(0, -1).join("; ")}; y ${consumoParts[consumoParts.length - 1]}.` + hoursSentence + ratioSentence,
+    `Mensualmente el taller dispone de ${resourceLine}.`,
+    `Los ${problemType === "MAX" ? "márgenes de ganancia" : "costos"} por prenda son de ${margins.slice(0, -1).join(", ")} y ${margins[margins.length - 1]}.`,
+    `Modele el problema de programación lineal para ${problemType === "MAX" ? "maximizar la ganancia" : "minimizar el costo"} total mensual.`,
   ].join("\n\n")
 
   const problem: ProblemData = {
@@ -226,7 +189,7 @@ function generateCostura(
 }
 
 // ============================================================
-// Scenario 3: Fábrica de Alfombras (Carpet Factory — closely matching example)
+// Scenario 3: Fábrica de Alfombras (Carpet Factory)
 // ============================================================
 function generateAlfombras(
   vars: number,
@@ -237,49 +200,41 @@ function generateAlfombras(
   const sizes = ["pequeña", "mediana", "grande", "extra grande", "de lujo"]
   const products = sizes.slice(0, vars)
 
-  // Resource 1: Canvas/cloth rolls (yield-based, inverse coeffs)
   const canvasYields = Array.from({ length: vars }, () => randInt(4, 20))
   const canvasRolls = randInt(8, 30)
 
-  // Resource 2: Thread/yarn (in meters)
   const threadCoeffs = Array.from({ length: vars }, () => randInt(100, 500))
   const threadRolls = randInt(20, 100)
   const threadPerRoll = 500
   const threadTotal = threadRolls * threadPerRoll
 
-  // Resource 3: Nails/fasteners
   const nailCoeffs = Array.from({ length: vars }, () => randInt(50, 200))
   const nailTotal = randInt(5000, 20000)
 
   const constraintRows: ConstraintRow[] = []
 
-  // Canvas constraint (yield-based)
   constraintRows.push({
     coefficients: canvasYields.map((y) => 1 / y),
     operator: "<=",
     value: canvasRolls,
   })
 
-  // Thread constraint
   constraintRows.push({
     coefficients: threadCoeffs,
     operator: "<=",
     value: threadTotal,
   })
 
-  // Nails constraint
   constraintRows.push({
     coefficients: nailCoeffs,
     operator: "<=",
     value: nailTotal,
   })
 
-  // Hours constraint
   const hourCoeffs = Array.from({ length: vars }, () => randInt(2, 8))
   const hoursTotal = randInt(300, 800)
   constraintRows.push({ coefficients: hourCoeffs, operator: "<=", value: hoursTotal })
 
-  // Ratio constraint (min sales ratio)
   let ratioSentence = ""
   if (vars >= 2 && Math.random() > 0.3) {
     const first = 0
@@ -291,41 +246,17 @@ function generateAlfombras(
       operator: "<=",
       value: 0,
     })
-    ratioSentence = ` La experiencia de ventas indica que por cada ${ratioA} alfombras ${products[first]}s se venden al menos ${ratioB} ${products[last]}s.`
+    ratioSentence = ` Según el historial de ventas, por cada ${ratioA} alfombras ${products[first]}s que salen del taller se venden al menos ${ratioB} ${products[last]}s.`
   }
 
   const objective = Array.from({ length: vars }, () => randInt(15000, 60000))
 
-  const canvasDesc = products
-    .map((p, i) => `${p}: ${canvasYields[i]} unidades`)
-    .join(", ")
-  const threadDesc = products
-    .map((p, i) => `${p}: ${threadCoeffs[i]} metros`)
-    .join(", ")
-  const nailDesc = products
-    .map((p, i) => `${p}: ${nailCoeffs[i]} unidades`)
-    .join(", ")
-  const hourDesc = products
-    .map((p, i) => `${p}: ${hourCoeffs[i]} horas`)
-    .join(", ")
-
-  const marginStr = products
-    .map((p, i) => `${p}: $${objective[i].toLocaleString()}`)
-    .join(", ")
-
-  const goal = problemType === "MAX" ? "máximas ganancias" : "mínimos costos"
-
   const narrative = [
-    `Un artesano fabrica y vende ${vars} tipos de alfombras: ${products.join(", ")}.`,
-    `De un rollo de lienzo se pueden obtener: ${canvasDesc}. Cada mes se cuenta con ${canvasRolls} rollos de lienzo.`,
-    `Los requerimientos de hilo son: ${threadDesc}. Se dispone de ${threadRolls} rollos de hilo de ${threadPerRoll} metros cada uno (${threadTotal.toLocaleString()} metros totales).`,
-    `Los requerimientos de clavos son: ${nailDesc}. Se dispone de ${nailTotal.toLocaleString()} clavos mensualmente.`,
-    `Las horas de elaboración son: ${hourDesc}. Mensualmente se dispone de ${hoursTotal} horas para la fabricación.`,
-    ratioSentence,
-    `El margen de utilidad por unidad es: ${marginStr}.`,
-    problemType === "MAX"
-      ? `Determine cuántas alfombras de cada tipo producir para maximizar las ganancias totales. Modele el problema.`
-      : `Determine la combinación de producción que minimice los costos totales. Modele el problema.`,
+    `Un artesano elabora ${vars} tipos de alfombras: ${products.join(", ")}. De un rollo de lienzo se pueden obtener ${products.map((p, i) => `${canvasYields[i]} ${p}s`).slice(0, -1).join(", ")} o ${canvasYields[canvasYields.length - 1]} ${products[products.length - 1]}s. Mensualmente se reciben ${canvasRolls} rollos de lienzo.`,
+    `Los requerimientos de hilo son de ${threadCoeffs.map((c, i) => `${c} metros para la ${products[i]}`).slice(0, -1).join(", ")} y ${threadCoeffs[threadCoeffs.length - 1]} metros para la ${products[products.length - 1]}. Se cuenta con ${threadRolls} rollos de hilo de ${threadPerRoll} metros cada uno (${threadTotal.toLocaleString()} metros). En cuanto a clavos, se necesitan ${nailCoeffs.map((c, i) => `${c} para la ${products[i]}`).slice(0, -1).join(", ")} y ${nailCoeffs[nailCoeffs.length - 1]} para la ${products[products.length - 1]}, disponiendo de ${nailTotal.toLocaleString()} clavos al mes.`,
+    `Los tiempos de elaboración son de ${hourCoeffs.map((c, i) => `${c} horas para la ${products[i]}`).slice(0, -1).join(", ")} y ${hourCoeffs[hourCoeffs.length - 1]} horas para la ${products[products.length - 1]}, con ${hoursTotal} horas disponibles mensualmente.` + ratioSentence,
+    `Los márgenes de utilidad son de $${objective.map((o, i) => `${o.toLocaleString()} por alfombra ${products[i]}`).slice(0, -1).join(", ")} y $${objective[objective.length - 1].toLocaleString()} por alfombra ${products[products.length - 1]}.`,
+    `Modele el problema de programación lineal para ${problemType === "MAX" ? "maximizar la ganancia mensual" : "minimizar el costo mensual"}.`,
   ].join("\n\n")
 
   const problem: ProblemData = {
@@ -353,10 +284,10 @@ function generateJuguetes(
 ): { problem: ProblemData; narrative: string } {
   const allProducts = ["muñeco", "carro", "pelota", "rompecabezas", "tren"]
   const allResources = [
-    { name: "plástico", unit: "kg", detail: "de plástico" },
-    { name: "pintura", unit: "litros", detail: "de pintura" },
-    { name: "cartón", unit: "m²", detail: "de cartón para empaque" },
-    { name: "goma", unit: "kg", detail: "de goma" },
+    { name: "plástico", unit: "kg" },
+    { name: "pintura", unit: "litros" },
+    { name: "cartón", unit: "m²" },
+    { name: "goma", unit: "kg" },
   ]
   const products = allProducts.slice(0, vars)
   const resources = allResources.slice(0, constraints)
@@ -382,24 +313,19 @@ function generateJuguetes(
   const hoursAvail = randInt(200, 700)
   constraintRows.push({ coefficients: hourCoeffs, operator: "<=", value: hoursAvail })
 
-  const prodConsumption = products.map((p, i) => {
-    const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} ${r.detail}`)
-    return `${p}: ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`
-  }).join(";\n")
-
-  const resourceAvail = resources.map((r, i) => `${values[i]} ${r.unit} ${r.detail}`).join(", ")
-  const margins = products.map((p, i) => `${p}: $${objective[i].toLocaleString()}`).join(", ")
-
-  const goal = problemType === "MAX" ? "maximizar las ganancias" : "minimizar los costos"
-  const marginWord = problemType === "MAX" ? "ganancia" : "costo"
+  const margins = products.map((p, i) => `${p} genera $${objective[i].toLocaleString()}`)
 
   const narrative = [
-    `Una fábrica de juguetes produce ${vars} modelos diferentes: ${products.join(", ")}.`,
-    `Los requerimientos de materiales para cada juguete son:\n${prodConsumption}.`,
-    `Además, cada juguete requiere tiempo de ensamblaje en la línea de producción: ${products.map((p, i) => `${p}: ${hourCoeffs[i]} horas`).join(", ")}.`,
-    `Mensualmente la fábrica dispone de ${resourceAvail} y ${hoursAvail} horas de ensamblaje.`,
-    `El ${marginWord} por unidad es: ${margins}.`,
-    `El objetivo es ${goal} totales. Modele el problema de programación lineal.`,
+    `En una fábrica de juguetes se producen ${products.join(", ")}. Los materiales necesarios son: ${products.map((p, i) => {
+      const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} de ${r.name}`)
+      return `cada ${p} consume ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`
+    }).slice(0, -1).join("; ")}; y ${products.length > 1 ? products.map((p, i) => {
+      const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} de ${r.name}`)
+      return `cada ${p} consume ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`
+    })[products.length - 1] : ""}. Cada juguete requiere además tiempo de ensamblaje: ${products.map((p, i) => `${hourCoeffs[i]} horas por ${p}`).slice(0, -1).join(", ")} y ${hourCoeffs[hourCoeffs.length - 1]} horas por ${products[products.length - 1]}.`,
+    `La fábrica cuenta mensualmente con ${resources.map((r, i) => `${values[i]} ${r.unit} de ${r.name}`).slice(0, -1).join(", ")} y ${values[resources.length - 1]} ${resources[resources.length - 1].unit} de ${resources[resources.length - 1].name}, además de ${hoursAvail} horas de ensamblaje.`,
+    `En términos de rentabilidad, cada ${margins.slice(0, -1).join(", cada ")} y cada ${margins[margins.length - 1]}.`,
+    `Modele el problema de programación lineal para ${problemType === "MAX" ? "maximizar la ganancia" : "minimizar el costo"} mensual.`,
   ].join("\n\n")
 
   const problem: ProblemData = {
@@ -427,19 +353,16 @@ function generatePanaderia(
 ): { problem: ProblemData; narrative: string } {
   const allProducts = ["pan francés", "pastel", "galleta", "dona", "bizcocho"]
   const allResources = [
-    { name: "harina", unit: "kg", detail: "de harina" },
-    { name: "azúcar", unit: "kg", detail: "de azúcar" },
-    { name: "mantequilla", unit: "kg", detail: "de mantequilla" },
-    { name: "huevos", unit: "unidades", detail: "huevos" },
+    { name: "harina", unit: "kg" },
+    { name: "azúcar", unit: "kg" },
+    { name: "mantequilla", unit: "kg" },
+    { name: "huevos", unit: "unidades" },
   ]
   const products = allProducts.slice(0, vars)
   const resources = allResources.slice(0, constraints)
 
   const coeffs: number[][] = resources.map(() =>
-    Array.from({ length: vars }, () => {
-      if (resources.length <= 2) return randInt(1, 5)
-      return randInt(100, 500)
-    }),
+    Array.from({ length: vars }, () => randInt(100, 500)),
   )
   const values: number[] = resources.map((_, i) => {
     if (i === 0) return randInt(200, 1500)
@@ -460,26 +383,20 @@ function generatePanaderia(
     const ovenCoeffs = Array.from({ length: vars }, () => randInt(10, 60))
     const ovenMins = randInt(2000, 10000)
     constraintRows.push({ coefficients: ovenCoeffs, operator: "<=", value: ovenMins })
-    ovenSentence = `\n\nLos tiempos de horneado son: ${products.map((p, i) => `${p}: ${ovenCoeffs[i]} minutos`).join(", ")}. El horno está disponible ${Math.round(ovenMins / 60)} horas al mes (${ovenMins} minutos).`
+    ovenSentence = ` Los tiempos de horneado son de ${ovenCoeffs.map((c, i) => `${c} minutos para ${products[i]}`).slice(0, -1).join(", ")} y ${ovenCoeffs[ovenCoeffs.length - 1]} minutos para ${products[products.length - 1]}, con una disponibilidad de horno de ${Math.round(ovenMins / 60)} horas (${ovenMins} minutos) al mes.`
   }
 
-  const prodConsumption = products.map((p, i) => {
-    const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} ${r.detail}`)
-    return `${p}: ${parts.join(", ")}`
-  }).join(";\n")
-
-  const resourceAvail = resources.map((r, i) => `${values[i]} ${r.unit} ${r.detail}`).join(", ")
-  const margins = products.map((p, i) => `${p}: $${objective[i].toLocaleString()}`).join(", ")
-
-  const goal = problemType === "MAX" ? "maximizar las ganancias" : "minimizar los costos"
-  const marginWord = problemType === "MAX" ? "ganancia" : "costo"
-
   const narrative = [
-    `Una panadería artesanal produce ${vars} productos: ${products.join(", ")}.`,
-    `Los ingredientes necesarios por lote son:\n${prodConsumption}.` + ovenSentence,
-    `Mensualmente la panadería dispone de ${resourceAvail}.`,
-    `El ${marginWord} por unidad es: ${margins}.`,
-    `El objetivo es ${goal} totales. Modele el problema de programación lineal.`,
+    `Una panadería artesanal prepara ${products.join(", ")}. Las cantidades de ingredientes por lote son: ${products.map((p, i) => {
+      const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} de ${r.name}`)
+      return `${p} lleva ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`
+    }).slice(0, -1).join("; ")}; y ${products.length > 1 ? products.map((p, i) => {
+      const parts = resources.map((r, ri) => `${coeffs[ri][i]} ${r.unit} de ${r.name}`)
+      return `${p} lleva ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`
+    })[products.length - 1] : ""}.` + ovenSentence,
+    `Mensualmente la panadería dispone de ${resources.map((r, i) => `${values[i]} ${r.unit} de ${r.name}`).slice(0, -1).join(", ")} y ${values[resources.length - 1]} ${resources[resources.length - 1].unit} de ${resources[resources.length - 1].name}.`,
+    `Cada ${products.map((p, i) => `${p} deja una ${problemType === "MAX" ? "ganancia" : "utilidad"} de $${objective[i].toLocaleString()}`).slice(0, -1).join(", cada ")} y cada ${products[products.length - 1]} deja una ${problemType === "MAX" ? "ganancia" : "utilidad"} de $${objective[objective.length - 1].toLocaleString()}.`,
+    `Modele el problema de programación lineal para ${problemType === "MAX" ? "maximizar la ganancia" : "minimizar el costo"} mensual.`,
   ].join("\n\n")
 
   const problem: ProblemData = {
