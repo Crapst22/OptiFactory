@@ -1,24 +1,32 @@
 import { NextRequest } from "next/server"
 
 export async function POST(req: NextRequest) {
-  const { messages } = await req.json()
+  const { messages, extractOnly } = await req.json()
 
-  const systemPrompt = `Eres un experto en Programación Lineal. Ayudas al usuario a modelar problemas de programación lineal.
+  const systemPrompt = extractOnly
+    ? `Eres un experto en Programación Lineal. Extrae los parámetros del problema descrito en la conversación y devuelve SOLO un JSON válido (sin texto, sin markdown):
 
-Responde SIEMPRE de forma natural y conversacional. Sé amable y útil.
+{
+  "title": "título descriptivo",
+  "problemType": "MAX" o "MIN",
+  "variables": número (2-10),
+  "objective": [coeficientes],
+  "constraintsData": [
+    { "coefficients": [coeficientes], "operator": "<=" o ">=" o "=", "value": número }
+  ],
+  "variableTypes": ["positive" o "integer" o "binary" o "free"]
+}
 
-Al final de tu respuesta, SI el usuario describió un problema de programación lineal con datos numéricos, agrega EXACTAMENTE esto (sin alterar):
----PARAMS---
-{ "title": "título", "problemType": "MAX" o "MIN", "variables": número, "objective": [coefs], "constraintsData": [ { "coefficients": [coefs], "operator": "<=" o ">=" o "=", "value": número } ], "variableTypes": ["positive" o "integer" o "binary" o "free", ...] }
----END---
+Reglas:
+- Cada constraint debe tener la misma cantidad de coeficientes que variables
+- variableTypes: uno por variable, default "positive"
+- operator default: "<="
+- Sin explicaciones, solo el JSON`
+    : `Eres un experto en Programación Lineal. Ayudas al usuario a modelar problemas.
 
-Reglas para el JSON:
-- Si no se especifica tipo de variable, asume "positive"
-- Si no se especifica operador, asume "<="
-- Usa "MAX" o "MIN"
-- Asegúrate de que objective y cada constraint tengan la misma cantidad de coeficientes que variables
+Responde de forma natural y conversacional. Si el usuario da datos numéricos de un problema, ayúdalo a entenderlo. Si solo saluda, responde amablemente.
 
-Si el usuario NO describió un problema (saluda, pregunta, etc.), NO incluyas ---PARAMS---. Responde normal.`
+NO agregues JSON ni marcadores en tu respuesta.`
 
   const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -48,7 +56,6 @@ Si el usuario NO describió un problema (saluda, pregunta, etc.), NO incluyas --
       if (!reader) { controller.close(); return }
       const decoder = new TextDecoder()
       let buffer = ""
-
       while (true) {
         const { done, value } = await reader.read()
         if (done) break

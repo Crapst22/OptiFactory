@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Send, Sparkles, Bot, User, CheckCircle2 } from "lucide-react"
+import { Loader2, Send, Sparkles, Bot, User, CheckCircle2, Brain } from "lucide-react"
 import { sendMessage, extractProblemFromResponse, ChatMessage } from "@/services/ollama"
 import { ProblemData } from "@/types"
 
@@ -16,11 +16,12 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
     {
       role: "assistant",
       content:
-        "Hola! Soy tu asistente de Programación Lineal. Cuéntame el enunciado de tu problema y extraeré los parámetros automáticamente.",
+        "Hola! Soy tu asistente de Programación Lineal. Cuéntame el enunciado de tu problema y cuando estés listo presiona 'Extraer parámetros' para llenar el formulario automáticamente.",
     },
   ])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [extracting, setExtracting] = useState(false)
   const [streamingText, setStreamingText] = useState("")
   const [parsedProblem, setParsedProblem] = useState<Partial<ProblemData> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -34,27 +35,21 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
     if (!userMsg || loading) return
 
     setInput("")
-    setParsedProblem(null)
     setStreamingText("")
     const userMessage: ChatMessage = { role: "user", content: userMsg }
     setMessages((prev) => [...prev, userMessage])
     setLoading(true)
+    setParsedProblem(null)
 
     const allMessages = [...messages, userMessage]
-    let rawContent = ""
 
     try {
-      rawContent = await sendMessage(allMessages, (token) => {
+      const fullContent = await sendMessage(allMessages, (token) => {
         setStreamingText((prev) => prev + token)
       })
-
-      const { displayText, problem } = extractProblemFromResponse(rawContent)
-      if (problem) {
-        setParsedProblem(problem)
-      }
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: displayText },
+        { role: "assistant", content: fullContent },
       ])
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error desconocido"
@@ -67,6 +62,43 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
       ])
     } finally {
       setLoading(false)
+      setStreamingText("")
+    }
+  }
+
+  const handleExtract = async () => {
+    setExtracting(true)
+    setParsedProblem(null)
+    setStreamingText("")
+
+    try {
+      const fullContent = await sendMessage(messages, (token) => {
+        setStreamingText((prev) => prev + token)
+      }, true)
+
+      const problem = extractProblemFromResponse(fullContent)
+      if (problem) {
+        setParsedProblem(problem)
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "No pude extraer los parámetros. ¿Podrías describir el problema con más detalles? Incluye los coeficientes numéricos, restricciones y el tipo de optimización (maximizar/minimizar).",
+          },
+        ])
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error desconocido"
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Error al extraer parámetros: ${msg}`,
+        },
+      ])
+    } finally {
+      setExtracting(false)
       setStreamingText("")
     }
   }
@@ -148,6 +180,24 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
         </div>
       )}
 
+      {messages.filter(m => m.role === "user").length > 0 && !parsedProblem && (
+        <div className="px-4 py-2 border-t shrink-0">
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleExtract}
+            disabled={extracting || loading}
+          >
+            {extracting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Brain className="size-4" />
+            )}
+            {extracting ? "Extrayendo parámetros..." : "Extraer parámetros"}
+          </Button>
+        </div>
+      )}
+
       <div className="p-4 border-t shrink-0">
         <form
           onSubmit={(e) => {
@@ -160,9 +210,9 @@ export function AiChat({ onApplyProblem }: AiChatProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe tu problema de programación lineal..."
-            disabled={loading}
+            disabled={loading || extracting}
           />
-          <Button type="submit" size="icon" disabled={loading || !input.trim()}>
+          <Button type="submit" size="icon" disabled={loading || extracting || !input.trim()}>
             {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </form>
