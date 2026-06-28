@@ -390,7 +390,7 @@ export default function GeneratorPage() {
                 </motion.div>
               )}
             </CardContent>
-            <CardFooter className="flex flex-wrap gap-2">
+            <CardFooter className="flex flex-wrap gap-2 w-full sm:w-auto">
               {!result ? (
                 <Button
                   onClick={handleSolve}

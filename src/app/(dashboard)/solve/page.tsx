@@ -468,7 +468,7 @@ export default function SolvePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
               <div className="rounded-lg bg-muted p-3">
                 <p className="text-xs text-muted-foreground">Método utilizado</p>
                 <p className="font-semibold mt-1">{methodLabels[result.method] ?? result.method}</p>

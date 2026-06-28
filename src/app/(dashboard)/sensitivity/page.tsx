@@ -187,78 +187,80 @@ export default function SensitivityPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Variable</TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Valor Actual
-                      <InfoTooltip text="El valor que tiene actualmente el coeficiente de la variable en la función objetivo." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Disminución Permisible
-                      <InfoTooltip text="Cuánto puede bajar el valor de la variable sin que cambie la solución óptima." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Aumento Permisible
-                      <InfoTooltip text="Cuánto puede aumentar el valor de la variable sin cambiar la solución óptima." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Rango
-                      <InfoTooltip text="El rango de valores que puede tomar el coeficiente de la variable sin afectar la solución óptima." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Estado
-                      <InfoTooltip text="Indica si la variable pertenece a la solución óptima (su valor es distinto de 0)." />
-                    </span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sensitivity.objectiveCoefficients.map((coeff: SensitivityCoefficient) => {
-                  const lower = coeff.currentValue - coeff.allowDecrease
-                  const upper = coeff.currentValue + coeff.allowIncrease
-                  return (
-                    <TableRow key={coeff.variable}>
-                      <TableCell className="font-medium">
-                        {coeff.variable}
-                      </TableCell>
-                      <TableCell>{formatNum(coeff.currentValue)}</TableCell>
-                      <TableCell className="text-red-500">
-                        {formatNum(coeff.allowDecrease)}
-                      </TableCell>
-                      <TableCell className="text-emerald-500">
-                        {formatNum(coeff.allowIncrease)}
-                      </TableCell>
-                      <TableCell>
-                        [{formatNum(lower)}, {formatNum(upper)}]
-                      </TableCell>
-                      <TableCell>
-                        {coeff.isBasic ? (
-                          <Badge variant="default" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                            <CheckCircle2 className="size-3 mr-1" />
-                            SÍ
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">
-                            NO
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Variable</TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Valor Actual
+                        <InfoTooltip text="El valor que tiene actualmente el coeficiente de la variable en la función objetivo." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Disminución Permisible
+                        <InfoTooltip text="Cuánto puede bajar el valor de la variable sin que cambie la solución óptima." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Aumento Permisible
+                        <InfoTooltip text="Cuánto puede aumentar el valor de la variable sin cambiar la solución óptima." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Rango
+                        <InfoTooltip text="El rango de valores que puede tomar el coeficiente de la variable sin afectar la solución óptima." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Estado
+                        <InfoTooltip text="Indica si la variable pertenece a la solución óptima (su valor es distinto de 0)." />
+                      </span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sensitivity.objectiveCoefficients.map((coeff: SensitivityCoefficient) => {
+                    const lower = coeff.currentValue - coeff.allowDecrease
+                    const upper = coeff.currentValue + coeff.allowIncrease
+                    return (
+                      <TableRow key={coeff.variable}>
+                        <TableCell className="font-medium">
+                          {coeff.variable}
+                        </TableCell>
+                        <TableCell>{formatNum(coeff.currentValue)}</TableCell>
+                        <TableCell className="text-red-500">
+                          {formatNum(coeff.allowDecrease)}
+                        </TableCell>
+                        <TableCell className="text-emerald-500">
+                          {formatNum(coeff.allowIncrease)}
+                        </TableCell>
+                        <TableCell>
+                          [{formatNum(lower)}, {formatNum(upper)}]
+                        </TableCell>
+                        <TableCell>
+                          {coeff.isBasic ? (
+                            <Badge variant="default" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                              <CheckCircle2 className="size-3 mr-1" />
+                              SÍ
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              NO
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -275,94 +277,96 @@ export default function SensitivityPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Restricción</TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Valor Actual (RHS)
-                      <InfoTooltip text="Cantidad de recurso disponible actualmente." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Disminución Permisible
-                      <InfoTooltip text="Cuánto puede disminuir este recurso sin que la solución óptima cambie." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Aumento Permisible
-                      <InfoTooltip text="Cuánto puede aumentar este recurso sin que la solución óptima cambie." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Rango
-                      <InfoTooltip text="El rango de valores en el que puede variar la cantidad de recurso sin afectar la solución óptima." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Precio Sombra
-                      <InfoTooltip text="El valor económico de tener una unidad adicional de este recurso." />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      Estado
-                      <InfoTooltip text="Indica si el recurso se consume en su totalidad y limita la solución actual." />
-                    </span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sensitivity.constraintValues.map((c: SensitivityConstraint) => {
-                  const lower = c.currentValue - c.allowDecrease
-                  const upper = c.currentValue + c.allowIncrease
-                  return (
-                    <TableRow key={c.constraint}>
-                      <TableCell className="font-medium">
-                        {c.constraint}
-                      </TableCell>
-                      <TableCell>{formatNum(c.currentValue)}</TableCell>
-                      <TableCell className="text-red-500">
-                        {formatNum(c.allowDecrease)}
-                      </TableCell>
-                      <TableCell className="text-emerald-500">
-                        {formatNum(c.allowIncrease)}
-                      </TableCell>
-                      <TableCell>
-                        [{formatNum(lower)}, {formatNum(upper)}]
-                      </TableCell>
-                      <TableCell>
-                        {c.dualPrice !== 0 ? (
-                          <span className="font-semibold text-amber-600 dark:text-amber-400">
-                            {formatNum(c.dualPrice)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {c.isBinding ? (
-                          <Badge variant="default" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
-                            <AlertTriangle className="size-3 mr-1" />
-                            SÍ
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">
-                            <Minus className="size-3 mr-1" />
-                            NO
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Restricción</TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Valor Actual (RHS)
+                        <InfoTooltip text="Cantidad de recurso disponible actualmente." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Disminución Permisible
+                        <InfoTooltip text="Cuánto puede disminuir este recurso sin que la solución óptima cambie." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Aumento Permisible
+                        <InfoTooltip text="Cuánto puede aumentar este recurso sin que la solución óptima cambie." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Rango
+                        <InfoTooltip text="El rango de valores en el que puede variar la cantidad de recurso sin afectar la solución óptima." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Precio Sombra
+                        <InfoTooltip text="El valor económico de tener una unidad adicional de este recurso." />
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Estado
+                        <InfoTooltip text="Indica si el recurso se consume en su totalidad y limita la solución actual." />
+                      </span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sensitivity.constraintValues.map((c: SensitivityConstraint) => {
+                    const lower = c.currentValue - c.allowDecrease
+                    const upper = c.currentValue + c.allowIncrease
+                    return (
+                      <TableRow key={c.constraint}>
+                        <TableCell className="font-medium">
+                          {c.constraint}
+                        </TableCell>
+                        <TableCell>{formatNum(c.currentValue)}</TableCell>
+                        <TableCell className="text-red-500">
+                          {formatNum(c.allowDecrease)}
+                        </TableCell>
+                        <TableCell className="text-emerald-500">
+                          {formatNum(c.allowIncrease)}
+                        </TableCell>
+                        <TableCell>
+                          [{formatNum(lower)}, {formatNum(upper)}]
+                        </TableCell>
+                        <TableCell>
+                          {c.dualPrice !== 0 ? (
+                            <span className="font-semibold text-amber-600 dark:text-amber-400">
+                              {formatNum(c.dualPrice)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">0</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {c.isBinding ? (
+                            <Badge variant="default" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                              <AlertTriangle className="size-3 mr-1" />
+                              SÍ
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <Minus className="size-3 mr-1" />
+                              NO
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -458,7 +462,7 @@ export default function SensitivityPage() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button onClick={runWhatIf} className="gap-2">
                 <Plus className="size-4" />
                 Evaluar Escenario

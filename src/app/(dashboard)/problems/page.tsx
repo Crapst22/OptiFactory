@@ -52,7 +52,7 @@ export default function ProblemsPage() {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-4xl mx-auto space-y-8"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Problemas</h1>
             <p className="text-muted-foreground mt-1">
@@ -93,7 +93,7 @@ export default function ProblemsPage() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-4xl mx-auto space-y-8"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Problemas</h1>
           <p className="text-muted-foreground mt-1">
@@ -118,10 +118,10 @@ export default function ProblemsPage() {
           >
             <Card className="hover:shadow-md transition-shadow">
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{p.title}</CardTitle>
-                    <CardDescription className="mt-1 font-mono text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-lg break-words">{p.title}</CardTitle>
+                    <CardDescription className="mt-1 font-mono text-xs break-all">
                       {objectiveStr(p)}
                     </CardDescription>
                   </div>

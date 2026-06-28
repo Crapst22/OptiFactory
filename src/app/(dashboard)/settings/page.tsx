@@ -106,7 +106,7 @@ export default function SettingsPage() {
                   setTheme(theme)
                   updateConfig({ theme })
                 }}
-                className="flex gap-3"
+                className="flex flex-wrap gap-3"
               >
                 <Label className="flex items-center gap-2 rounded-lg border border-input has-data-checked:border-primary has-data-checked:bg-primary/5 px-4 py-3 cursor-pointer transition-colors">
                   <RadioGroupItem value="light" />

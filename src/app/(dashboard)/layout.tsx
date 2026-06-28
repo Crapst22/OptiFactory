@@ -15,7 +15,7 @@ export default function DashboardLayout({
           <MobileNav />
           <div className="flex-1" />
         </header>
-        <main className="flex-1 overflow-auto p-6 bg-background">
+        <main className="flex-1 overflow-auto p-4 sm:p-6 bg-background">
           {children}
         </main>
       </div>

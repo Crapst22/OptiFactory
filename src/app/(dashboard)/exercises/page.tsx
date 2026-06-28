@@ -227,20 +227,22 @@ export default function ExercisesPage() {
           onValueChange={(v: string | null) => v && setActiveTab(v as Difficulty)}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
-            <TabsTrigger value="BEGINNER" className="gap-2">
-              <BookOpen className="size-4" />
-              Principiante
-            </TabsTrigger>
-            <TabsTrigger value="INTERMEDIATE" className="gap-2">
-              <BarChart3 className="size-4" />
-              Intermedio
-            </TabsTrigger>
-            <TabsTrigger value="ADVANCED" className="gap-2">
-              <Lightbulb className="size-4" />
-              Avanzado
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="grid w-full grid-cols-3 max-w-md min-w-[360px]">
+              <TabsTrigger value="BEGINNER" className="gap-2">
+                <BookOpen className="size-4 shrink-0" />
+                <span className="truncate">Principiante</span>
+              </TabsTrigger>
+              <TabsTrigger value="INTERMEDIATE" className="gap-2">
+                <BarChart3 className="size-4 shrink-0" />
+                <span className="truncate">Intermedio</span>
+              </TabsTrigger>
+              <TabsTrigger value="ADVANCED" className="gap-2">
+                <Lightbulb className="size-4 shrink-0" />
+                <span className="truncate">Avanzado</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {(["BEGINNER", "INTERMEDIATE", "ADVANCED"] as Difficulty[]).map((diff) => (
             <TabsContent key={diff} value={diff} className="mt-6 space-y-6">
@@ -268,15 +270,15 @@ export default function ExercisesPage() {
                     >
                       <Card className="overflow-hidden">
                         <CardHeader>
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="space-y-1.5">
-                              <div className="flex items-center gap-2">
-                                <CardTitle className="text-xl">{ex.title}</CardTitle>
-                                <Badge className={cn("font-medium", diffCfg.color)}>
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            <div className="space-y-1.5 min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <CardTitle className="text-xl break-words">{ex.title}</CardTitle>
+                                <Badge className={cn("font-medium shrink-0", diffCfg.color)}>
                                   {diffCfg.label}
                                 </Badge>
                                 {saved && (
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs shrink-0">
                                     Generado
                                   </Badge>
                                 )}
@@ -363,7 +365,7 @@ export default function ExercisesPage() {
                           )}
                         </CardContent>
 
-                        <CardFooter className="flex flex-wrap gap-2 border-t bg-muted/20 px-6 py-3">
+                        <CardFooter className="flex flex-wrap gap-2 border-t bg-muted/20 px-4 sm:px-6 py-3">
                           <Button onClick={() => handleSolve(ex)} className="gap-2">
                             <BarChart3 className="size-4" />
                             Resolver
