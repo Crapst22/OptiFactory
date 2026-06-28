@@ -303,7 +303,7 @@ export default function SolvePage() {
                     </CardDescription>
                   </div>
                   <Badge variant="outline" className="text-xs">
-                    Iteración {currentStep.iteration ?? currentStepIndex + 1}
+                    Iteración {(currentStep.iteration ?? currentStepIndex) + 1}
                   </Badge>
                 </div>
               </CardHeader>

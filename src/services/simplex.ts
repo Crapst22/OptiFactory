@@ -368,7 +368,7 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
     problem.constraints,
     isMaximization,
     steps,
-    phase2Count
+    iteration
   )
   result.timeMs = performance.now() - startTime
   return result
@@ -748,7 +748,7 @@ function solveDualSimplex(problem: ProblemData, startTime: number): SimplexResul
     tableau, basis, headers, varNames, numConstraints, isMaximization, steps, iteration
   )
   result.timeMs = performance.now() - startTime
-  result.method = "SIMPLEX"
+  result.method = "DUAL_SIMPLEX"
   return result
 }
 
@@ -963,7 +963,7 @@ export function solveProblem(problem: ProblemData): SimplexResult {
     result = solveSimplex({ ...problem, method })
   }
 
-  result.method = method === "INTEGER_PROGRAMMING" ? "INTEGER_PROGRAMMING" : "SIMPLEX"
+  result.method = method
   return result
 }
 
