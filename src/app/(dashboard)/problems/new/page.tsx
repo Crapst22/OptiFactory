@@ -96,9 +96,9 @@ export default function NewProblemPage() {
       </div>
 
       <Dialog open={chatOpen} onOpenChange={setChatOpen}>
-        <DialogTrigger render={<Button variant="outline" className="w-full gap-2 h-12 text-base" />}>
-          <Sparkles className="size-5 text-primary" />
-          Asistente IA — describe tu problema en lenguaje natural
+        <DialogTrigger render={<Button variant="outline" className="w-full gap-2 h-auto min-h-12 text-sm md:text-base whitespace-normal px-3" />}>
+          <Sparkles className="size-5 text-primary shrink-0" />
+          <span className="text-balance">Asistente IA — describe tu problema en lenguaje natural</span>
         </DialogTrigger>
         <DialogContent className="max-w-2xl max-h-[80vh] h-[600px] p-0 flex flex-col overflow-hidden">
           <AiChat
