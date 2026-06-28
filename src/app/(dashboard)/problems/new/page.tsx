@@ -25,6 +25,25 @@ import { AiChat } from "@/components/ai-chat"
 export default function NewProblemPage() {
   const router = useRouter()
   const [chatOpen, setChatOpen] = useState(false)
+  const [dirty, setDirty] = useState<Record<string, string>>({})
+
+  const displayVal = (key: string, modelVal: number) => dirty[key] ?? String(modelVal)
+
+  const handleNumChange = (key: string, raw: string, setter: (v: number) => void) => {
+    setDirty(prev => ({ ...prev, [key]: raw }))
+    if (raw === "" || raw === "-") return
+    const num = parseFloat(raw)
+    if (!isNaN(num)) setter(num)
+  }
+
+  const syncDirty = (key: string) => {
+    setDirty(prev => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
   const {
     problem,
     setTitle,
@@ -197,8 +216,9 @@ export default function NewProblemPage() {
               <div key={i} className="flex items-center gap-1">
                 <Input
                   type="number"
-                  value={coeff}
-                  onChange={(e) => setObjective(i, parseFloat(e.target.value) || 0)}
+                  value={displayVal(`obj-${i}`, coeff)}
+                  onChange={(e) => handleNumChange(`obj-${i}`, e.target.value, (v) => setObjective(i, v))}
+                  onBlur={() => syncDirty(`obj-${i}`)}
                   className="w-20 text-center"
                 />
                 <span className="font-medium">{varNames[i]}</span>
@@ -240,10 +260,11 @@ export default function NewProblemPage() {
                       <td key={j} className="py-2 px-3">
                         <Input
                           type="number"
-                          value={coeff}
+                          value={displayVal(`coeff-${i}-${j}`, coeff)}
                           onChange={(e) =>
-                            setConstraintCoefficient(i, j, parseFloat(e.target.value) || 0)
+                            handleNumChange(`coeff-${i}-${j}`, e.target.value, (v) => setConstraintCoefficient(i, j, v))
                           }
+                          onBlur={() => syncDirty(`coeff-${i}-${j}`)}
                           className="w-20 text-center"
                         />
                       </td>
@@ -268,10 +289,11 @@ export default function NewProblemPage() {
                     <td className="py-2 px-3">
                       <Input
                         type="number"
-                        value={row.value}
+                        value={displayVal(`val-${i}`, row.value)}
                         onChange={(e) =>
-                          setConstraintValue(i, parseFloat(e.target.value) || 0)
+                          handleNumChange(`val-${i}`, e.target.value, (v) => setConstraintValue(i, v))
                         }
+                        onBlur={() => syncDirty(`val-${i}`)}
                         className="w-24 text-center"
                       />
                     </td>

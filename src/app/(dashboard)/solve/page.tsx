@@ -581,6 +581,10 @@ function ParamControl({
   onChange: (v: number) => void
   icon?: React.ElementType
 }) {
+  const [localVal, setLocalVal] = useState<string | null>(null)
+
+  const display = localVal ?? String(value)
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -593,24 +597,28 @@ function ParamControl({
             variant="outline"
             size="icon"
             className="size-7 shrink-0"
-            onClick={() => onChange(+(value - step).toFixed(4))}
+            onClick={() => { setLocalVal(null); onChange(+(value - step).toFixed(4)) }}
           >
             <Minus className="size-3" />
           </Button>
           <Input
             type="number"
-            value={value}
+            value={display}
             onChange={(e) => {
-              const v = parseFloat(e.target.value)
+              const raw = e.target.value
+              setLocalVal(raw)
+              if (raw === "" || raw === "-") return
+              const v = parseFloat(raw)
               if (!isNaN(v)) onChange(v)
             }}
+            onBlur={() => setLocalVal(null)}
             className="w-20 h-8 text-center text-sm tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Button
             variant="outline"
             size="icon"
             className="size-7 shrink-0"
-            onClick={() => onChange(+(value + step).toFixed(4))}
+            onClick={() => { setLocalVal(null); onChange(+(value + step).toFixed(4)) }}
           >
             <Plus className="size-3" />
           </Button>
