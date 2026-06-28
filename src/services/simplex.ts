@@ -623,6 +623,135 @@ function buildPivotExplanation(
   return { en: explanationEn, es: explanationEs }
 }
 
+function solveDualSimplex(problem: ProblemData, startTime: number): SimplexResult {
+  const { coefficients, objective, signs, values, isMaximization } = toStandardForm(problem)
+  const numVars = problem.variables
+  const numConstraints = problem.constraints
+  const varNames = generateVariableNames(numVars)
+  const slackNames = generateSlackNames(numVars, numConstraints)
+  const totalCols = numVars + numConstraints + 1
+
+  const headers: string[] = [...varNames, ...slackNames, "Solution"]
+  const tableau: number[][] = []
+  const basis: string[] = []
+
+  for (let i = 0; i < numConstraints; i++) {
+    const row = new Array(totalCols).fill(0)
+    const multiplier = signs[i] === ">=" ? -1 : 1
+    for (let j = 0; j < numVars; j++) {
+      row[j] = multiplier * coefficients[i][j]
+    }
+    row[numVars + i] = 1
+    row[totalCols - 1] = multiplier * values[i]
+    tableau.push(row)
+    basis.push(slackNames[i])
+  }
+
+  const zRow = new Array(totalCols).fill(0)
+  for (let j = 0; j < numVars; j++) {
+    zRow[j] = -objective[j]
+  }
+  tableau.push(zRow)
+
+  const steps: SimplexStep[] = []
+  let iteration = 0
+  const maxIterations = 100
+
+  while (iteration < maxIterations) {
+    const currentZRow = tableau[tableau.length - 1]
+    const currentTable: SimplexTable = {
+      headers,
+      rows: tableau.slice(0, -1),
+      zRow: currentZRow,
+      basis: [...basis],
+      solution: tableau.map((row) => row[row.length - 1]),
+    }
+
+    let pivotRow = -1
+    let mostNegative = 0
+    for (let i = 0; i < numConstraints; i++) {
+      const rhs = tableau[i][totalCols - 1]
+      if (rhs < -EPSILON && rhs < mostNegative) {
+        mostNegative = rhs
+        pivotRow = i
+      }
+    }
+
+    if (pivotRow === -1) {
+      steps.push({
+        iteration,
+        table: currentTable,
+        isOptimal: true,
+        explanation: "Dual Simplex: All RHS values are non-negative. Optimal solution reached.",
+        explanationSpanish:
+          "Dual Simplex: Todos los valores RHS son no negativos. Se ha alcanzado la solución óptima.",
+      })
+      break
+    }
+
+    let pivotCol = -1
+    let minRatio = Infinity
+    for (let j = 0; j < totalCols - 1; j++) {
+      const a = tableau[pivotRow][j]
+      if (a >= -EPSILON) continue
+      const ratio = Math.abs(currentZRow[j] / a)
+      if (ratio < minRatio) {
+        minRatio = ratio
+        pivotCol = j
+      }
+    }
+
+    if (pivotCol === -1) {
+      steps.push({
+        iteration,
+        table: currentTable,
+        isOptimal: false,
+        explanation: "Dual Simplex: Problem is infeasible. No negative coefficient in pivot row.",
+        explanationSpanish:
+          "Dual Simplex: El problema es infactible. No hay coeficiente negativo en la fila pivote.",
+      })
+      return {
+        optimal: false, optimalValue: 0, variables: {}, slackVariables: {},
+        steps, method: "SIMPLEX", iterations: iteration,
+        status: "INFEASIBLE",
+        statusExplanation:
+          "El problema no tiene solución factible. Las restricciones son inconsistentes entre sí.",
+        timeMs: performance.now() - startTime,
+      }
+    }
+
+    const enteringVar = headers[pivotCol]
+    const leavingVar = basis[pivotRow]
+
+    steps.push({
+      iteration,
+      table: currentTable,
+      pivotColumn: pivotCol,
+      pivotRow,
+      pivotElement: tableau[pivotRow][pivotCol],
+      enteringVariable: enteringVar,
+      leavingVariable: leavingVar,
+      explanation:
+        `Dual Simplex: Row ${pivotRow + 1} has most negative RHS (${mostNegative}). ` +
+        `Variable ${enteringVar} enters to maintain dual feasibility.`,
+      explanationSpanish:
+        `Dual Simplex: La fila ${pivotRow + 1} tiene el RHS más negativo (${mostNegative}). ` +
+        `La variable ${enteringVar} entra para mantener la factibilidad dual.`,
+      isOptimal: false,
+    })
+
+    pivot(tableau, pivotRow, pivotCol, basis, headers)
+    iteration++
+  }
+
+  const result = extractResult(
+    tableau, basis, headers, varNames, numConstraints, isMaximization, steps, iteration
+  )
+  result.timeMs = performance.now() - startTime
+  result.method = "SIMPLEX"
+  return result
+}
+
 function solveRelaxation(problem: ProblemData): SimplexResult {
   return solveSimplex({ ...problem, method: "BIG_M" })
 }
@@ -794,10 +923,14 @@ export function autoDetectMethod(problem: ProblemData): SolveMethod {
   const hasIntegerVars = problem.variableTypes.some(t => t === "integer" || t === "binary")
   const hasEquality = problem.constraintsData.some((r) => r.operator === "=")
   const hasGreaterEqual = problem.constraintsData.some((r) => r.operator === ">=")
+  const hasLessEqual = problem.constraintsData.some((r) => r.operator === "<=")
   const hasFreeVariable = problem.variableTypes.includes("free")
 
   if (hasIntegerVars) {
     return "INTEGER_PROGRAMMING"
+  }
+  if (hasGreaterEqual && !hasLessEqual && !hasEquality && problem.problemType === "MIN") {
+    return "DUAL_SIMPLEX"
   }
   if (hasGreaterEqual || hasEquality) {
     return "TWO_PHASE"
@@ -822,6 +955,8 @@ export function solveProblem(problem: ProblemData): SimplexResult {
     result = solveBigM(problem)
   } else if (method === "TWO_PHASE") {
     result = solveTwoPhaseSimplex(problem, startTime)
+  } else if (method === "DUAL_SIMPLEX") {
+    result = solveDualSimplex(problem, startTime)
   } else if (method === "INTEGER_PROGRAMMING") {
     result = solveIntegerProgramming(problem)
   } else {
