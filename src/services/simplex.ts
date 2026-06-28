@@ -138,21 +138,15 @@ function buildInitialTableau(
 function findPivotColumn(zRow: number[], headers: string[]): number {
   let minVal = 0
   let pivotCol = -1
-  let nonArtificialPivotCol = -1
-  let nonArtificialMinVal = 0
   for (let j = 0; j < zRow.length - 1; j++) {
+    if (headers[j].startsWith("A")) continue
     if (zRow[j] < -EPSILON) {
       if (pivotCol === -1 || zRow[j] < minVal) {
         minVal = zRow[j]
         pivotCol = j
       }
-      if (!headers[j].startsWith("A") && (nonArtificialPivotCol === -1 || zRow[j] < nonArtificialMinVal)) {
-        nonArtificialMinVal = zRow[j]
-        nonArtificialPivotCol = j
-      }
     }
   }
-  if (nonArtificialPivotCol !== -1) return nonArtificialPivotCol
   return pivotCol
 }
 
