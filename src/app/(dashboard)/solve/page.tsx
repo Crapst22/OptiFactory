@@ -299,7 +299,7 @@ export default function SolvePage() {
                       Paso {currentStepIndex + 1} de {steps.length}
                     </CardTitle>
                     <CardDescription>
-                      {currentStep.explanation ?? "Iteración del método Simplex"}
+                      {currentStep.explanationSpanish || currentStep.explanation || "Iteración del método Simplex"}
                     </CardDescription>
                   </div>
                   <Badge variant="outline" className="text-xs">
