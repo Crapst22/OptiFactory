@@ -194,8 +194,7 @@ function extractResult(
   varNames: string[],
   numConstraints: number,
   isMaximization: boolean,
-  steps: SimplexStep[],
-  phase2Iterations = 0
+  steps: SimplexStep[]
 ): SimplexResult {
   const zRow = tableau[tableau.length - 1]
   const numVars = varNames.length
@@ -248,7 +247,7 @@ function extractResult(
     slackVariables,
     steps,
     method: "SIMPLEX",
-    iterations: phase2Iterations,
+    iterations: steps.filter(s => !s.isOptimal).length || 1,
     status,
     statusExplanation,
     timeMs: 0,
@@ -271,8 +270,6 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
   const steps: SimplexStep[] = []
   let iteration = 0
   const maxIterations = 100
-  let phase2Iterations = 0
-  let inPhase2 = artificialVariables === 0
 
   while (iteration < maxIterations) {
     const zRow = tableau[tableau.length - 1]
@@ -315,7 +312,7 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
         slackVariables: {},
         steps,
         method: "SIMPLEX",
-        iterations: phase2Iterations,
+        iterations: steps.filter(s => !s.isOptimal).length,
         status: "UNBOUNDED",
         statusExplanation:
           "El problema no está acotado. La función objetivo puede aumentar indefinidamente sin violar restricciones.",
@@ -352,12 +349,6 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
 
     pivot(tableau, pivotRow, pivotCol, basis, headers)
     iteration++
-
-    if (!inPhase2 && !basis.some(b => b.startsWith("A"))) {
-      inPhase2 = true
-    } else if (inPhase2) {
-      phase2Iterations++
-    }
   }
 
   const result = extractResult(
@@ -367,8 +358,7 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
     varNames,
     problem.constraints,
     isMaximization,
-    steps,
-    phase2Iterations
+    steps
   )
   result.timeMs = performance.now() - startTime
   return result
