@@ -483,7 +483,7 @@ function solveTwoPhaseSimplex(problem: ProblemData, startTime: number): SimplexR
         slackVariables: {},
         steps,
         method: "SIMPLEX",
-        iterations: iteration,
+        iterations: 0,
         status: "INFEASIBLE",
         statusExplanation:
           "El problema no tiene solución factible. Las restricciones son inconsistentes entre sí.",
@@ -581,7 +581,7 @@ function solveTwoPhaseSimplex(problem: ProblemData, startTime: number): SimplexR
   }
 
   const result = extractResult(
-    tableau, basis, headers, varNames, numConstraints, isMaximization, steps, iteration
+    tableau, basis, headers, varNames, numConstraints, isMaximization, steps, phase2Count
   )
   result.timeMs = performance.now() - startTime
   result.method = "SIMPLEX"
