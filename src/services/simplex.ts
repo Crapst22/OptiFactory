@@ -194,7 +194,8 @@ function extractResult(
   varNames: string[],
   numConstraints: number,
   isMaximization: boolean,
-  steps: SimplexStep[]
+  steps: SimplexStep[],
+  phase2Count = 0
 ): SimplexResult {
   const zRow = tableau[tableau.length - 1]
   const numVars = varNames.length
@@ -247,7 +248,7 @@ function extractResult(
     slackVariables,
     steps,
     method: "SIMPLEX",
-    iterations: steps.filter(s => !s.isOptimal).length || 1,
+    iterations: phase2Count,
     status,
     statusExplanation,
     timeMs: 0,
@@ -270,6 +271,8 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
   const steps: SimplexStep[] = []
   let iteration = 0
   const maxIterations = 100
+  let phase2Count = 0
+  let phase2Started = artificialVariables === 0
 
   while (iteration < maxIterations) {
     const zRow = tableau[tableau.length - 1]
@@ -312,7 +315,7 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
         slackVariables: {},
         steps,
         method: "SIMPLEX",
-        iterations: steps.filter(s => !s.isOptimal).length,
+        iterations: phase2Count,
         status: "UNBOUNDED",
         statusExplanation:
           "El problema no está acotado. La función objetivo puede aumentar indefinidamente sin violar restricciones.",
@@ -349,6 +352,12 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
 
     pivot(tableau, pivotRow, pivotCol, basis, headers)
     iteration++
+
+    if (!phase2Started && !basis.some(b => b.startsWith("A"))) {
+      phase2Started = true
+    } else if (phase2Started) {
+      phase2Count++
+    }
   }
 
   const result = extractResult(
@@ -358,9 +367,224 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
     varNames,
     problem.constraints,
     isMaximization,
-    steps
+    steps,
+    phase2Count
   )
   result.timeMs = performance.now() - startTime
+  return result
+}
+
+function solveTwoPhaseSimplex(problem: ProblemData, startTime: number): SimplexResult {
+  const { coefficients, objective, signs, values, isMaximization } = toStandardForm(problem)
+  const varNames = generateVariableNames(problem.variables)
+  const numConstraints = problem.constraints
+  const numVars = problem.variables
+
+  const { tableau, basis, headers, artificialVariables } = buildInitialTableau(
+    coefficients, objective, signs, values, "SIMPLEX", problem.variableTypes
+  )
+
+  const totalCols = tableau[0].length
+  const zRow = tableau[tableau.length - 1]
+  let iteration = 0
+  const maxIterations = 100
+  const steps: SimplexStep[] = []
+
+  // --- PHASE I ---
+  // Save original objective coefficients for Phase II
+  const originalObjCoeffs = [...zRow]
+
+  // Set Phase I objective: maximize -sum(artificials)
+  for (let j = 0; j < totalCols - 1; j++) {
+    zRow[j] = headers[j].startsWith("A") ? 1 : 0
+  }
+  zRow[totalCols - 1] = 0
+
+  // Adjust zRow for basic artificials: for each row with artificial in basis, subtract the row
+  for (let i = 0; i < numConstraints; i++) {
+    if (basis[i].startsWith("A")) {
+      for (let j = 0; j < totalCols; j++) {
+        zRow[j] -= tableau[i][j]
+      }
+    }
+  }
+
+  // Phase I simplex loop
+  while (iteration < maxIterations) {
+    const pivotCol = findPivotColumn(zRow, headers)
+    const currentTable: SimplexTable = {
+      headers,
+      rows: tableau.slice(0, -1),
+      zRow,
+      basis: [...basis],
+      solution: tableau.map((row) => row[row.length - 1]),
+    }
+
+    if (pivotCol === -1) {
+      steps.push({
+        iteration,
+        table: currentTable,
+        isOptimal: true,
+        explanation: "Phase I complete. A feasible basis has been found.",
+        explanationSpanish:
+          "Fase I completada. Se ha encontrado una base factible.",
+      })
+      break
+    }
+
+    const pivotRow = findPivotRow(tableau, pivotCol)
+    if (pivotRow === -1) {
+      steps.push({
+        iteration,
+        table: currentTable,
+        isOptimal: false,
+        explanation: "Phase I: Problem is unbounded.",
+        explanationSpanish: "Fase I: El problema no está acotado.",
+      })
+      return {
+        optimal: false, optimalValue: 0, variables: {}, slackVariables: {},
+        steps, method: "SIMPLEX", iterations: 0,
+        status: "UNBOUNDED",
+        statusExplanation: "El problema no tiene solución acotada.",
+        timeMs: performance.now() - startTime,
+      }
+    }
+
+    const enteringVar = headers[pivotCol]
+    const leavingVar = basis[pivotRow]
+    const pivotExplanation = buildPivotExplanation(
+      headers, basis, pivotCol, pivotRow, zRow, tableau, varNames, iteration
+    )
+
+    steps.push({
+      iteration,
+      table: currentTable,
+      pivotColumn: pivotCol,
+      pivotRow,
+      pivotElement: tableau[pivotRow][pivotCol],
+      enteringVariable: enteringVar,
+      leavingVariable: leavingVar,
+      explanation: pivotExplanation.en,
+      explanationSpanish: pivotExplanation.es,
+      isOptimal: false,
+    })
+
+    pivot(tableau, pivotRow, pivotCol, basis, headers)
+    iteration++
+  }
+
+  // Check feasibility: any basic artificial with non-zero value?
+  for (let i = 0; i < numConstraints; i++) {
+    if (basis[i].startsWith("A") && Math.abs(tableau[i][totalCols - 1]) > EPSILON) {
+      return {
+        optimal: false,
+        optimalValue: 0,
+        variables: {},
+        slackVariables: {},
+        steps,
+        method: "SIMPLEX",
+        iterations: 0,
+        status: "INFEASIBLE",
+        statusExplanation:
+          "El problema no tiene solución factible. Las restricciones son inconsistentes entre sí.",
+        timeMs: performance.now() - startTime,
+      }
+    }
+  }
+
+  // --- TRANSITION TO PHASE II ---
+  // Restore original objective coefficients
+  for (let j = 0; j < totalCols - 1; j++) {
+    zRow[j] = originalObjCoeffs[j]
+  }
+  zRow[totalCols - 1] = 0
+
+  // Adjust zRow for the current basis (eliminate basic columns from zRow)
+  for (let i = 0; i < numConstraints; i++) {
+    const b = basis[i]
+    const colIdx = headers.indexOf(b)
+    if (colIdx >= 0 && !isZero(zRow[colIdx])) {
+      const factor = zRow[colIdx]
+      for (let j = 0; j < totalCols; j++) {
+        zRow[j] -= factor * tableau[i][j]
+      }
+    }
+  }
+
+  // --- PHASE II ---
+  let phase2Count = 0
+
+  while (iteration < maxIterations) {
+    const pivotCol = findPivotColumn(zRow, headers)
+    const currentTable: SimplexTable = {
+      headers,
+      rows: tableau.slice(0, -1),
+      zRow,
+      basis: [...basis],
+      solution: tableau.map((row) => row[row.length - 1]),
+    }
+
+    if (pivotCol === -1) {
+      steps.push({
+        iteration,
+        table: currentTable,
+        isOptimal: true,
+        explanation: "All coefficients in Z row are non-negative. Optimal solution reached.",
+        explanationSpanish:
+          "Todos los coeficientes de la fila Z son no negativos. Se ha alcanzado la solución óptima.",
+      })
+      break
+    }
+
+    const pivotRow = findPivotRow(tableau, pivotCol)
+    if (pivotRow === -1) {
+      steps.push({
+        iteration,
+        table: currentTable,
+        isOptimal: false,
+        explanation: "Problem is unbounded. No limiting constraint found.",
+        explanationSpanish:
+          "El problema no está acotado. No se encontró una restricción limitante.",
+      })
+      return {
+        optimal: false, optimalValue: 0, variables: {}, slackVariables: {},
+        steps, method: "SIMPLEX", iterations: phase2Count,
+        status: "UNBOUNDED",
+        statusExplanation:
+          "El problema no está acotado. La función objetivo puede aumentar indefinidamente sin violar restricciones.",
+        timeMs: performance.now() - startTime,
+      }
+    }
+
+    const enteringVar = headers[pivotCol]
+    const leavingVar = basis[pivotRow]
+    const pivotExplanation = buildPivotExplanation(
+      headers, basis, pivotCol, pivotRow, zRow, tableau, varNames, iteration
+    )
+
+    steps.push({
+      iteration,
+      table: currentTable,
+      pivotColumn: pivotCol,
+      pivotRow,
+      pivotElement: tableau[pivotRow][pivotCol],
+      enteringVariable: enteringVar,
+      leavingVariable: leavingVar,
+      explanation: pivotExplanation.en,
+      explanationSpanish: pivotExplanation.es,
+      isOptimal: false,
+    })
+
+    pivot(tableau, pivotRow, pivotCol, basis, headers)
+    iteration++
+    phase2Count++
+  }
+
+  const result = extractResult(
+    tableau, basis, headers, varNames, numConstraints, isMaximization, steps, phase2Count
+  )
+  result.timeMs = performance.now() - startTime
+  result.method = "SIMPLEX"
   return result
 }
 
@@ -576,7 +800,7 @@ export function autoDetectMethod(problem: ProblemData): SolveMethod {
     return "INTEGER_PROGRAMMING"
   }
   if (hasGreaterEqual || hasEquality) {
-    return "BIG_M"
+    return "TWO_PHASE"
   }
   if (hasFreeVariable) {
     return "BIG_M"
@@ -596,6 +820,8 @@ export function solveProblem(problem: ProblemData): SimplexResult {
     result = solveGraphical(problem)
   } else if (method === "BIG_M") {
     result = solveBigM(problem)
+  } else if (method === "TWO_PHASE") {
+    result = solveTwoPhaseSimplex(problem, startTime)
   } else if (method === "INTEGER_PROGRAMMING") {
     result = solveIntegerProgramming(problem)
   } else {
