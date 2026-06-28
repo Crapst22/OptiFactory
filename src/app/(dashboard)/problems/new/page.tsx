@@ -239,8 +239,12 @@ export default function NewProblemPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div
+            className="overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-muted/40 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40"
+            style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(156,163,175,0.25) rgba(243,244,246,0.4)" }}
+          >
+            <div className="flex">
+              <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
                   {varNames.map((name) => (
@@ -323,6 +327,8 @@ export default function NewProblemPage() {
                 ))}
               </tbody>
             </table>
+              <div className="sticky right-0 top-0 w-8 shrink-0 pointer-events-none bg-gradient-to-l from-background/90 via-background/30 to-transparent" />
+            </div>
           </div>
 
           <Button variant="outline" size="sm" onClick={addConstraint}>
