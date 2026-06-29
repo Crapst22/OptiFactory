@@ -1064,11 +1064,56 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
   const hadArtificialBasis = basis.some((b) => b.startsWith("A"))
   removeArtificialsFromBasis(headers, rows, basis, solution)
 
+  const totalCols = headers.length
+
+  // After removing artificials, also pivot degenerate structural variables (value=0)
+  // out of the basis, preferring to bring in non-basic slack variables.
+  // This produces dual prices that match LINDO (slack basic → dual=0 for that constraint).
+  for (let r = 0; r < rows.length; r++) {
+    if (!isZero(solution[r])) continue          // skip non-degenerate (value ≠ 0)
+    const bv = basis[r]
+    if (bv.startsWith("H") || bv.startsWith("A")) continue  // only pivot X vars out
+
+    // Try to pivot in any non-basic slack variable
+    let pivotCol = -1
+    for (let j = 0; j < totalCols - 1; j++) {
+      if (basis.includes(headers[j])) continue  // skip basic columns
+      if (!headers[j].startsWith("H")) continue
+      if (isZero(rows[r][j])) continue
+      if (pivotCol === -1) pivotCol = j
+    }
+    if (pivotCol === -1) continue
+
+    // Degenerate pivot: entering variable enters at value 0, obj doesn't change
+    const pivotVal = rows[r][pivotCol]
+    for (let j = 0; j < totalCols; j++) {
+      rows[r][j] /= pivotVal
+    }
+    solution[r] /= pivotVal
+    for (let i = 0; i < rows.length; i++) {
+      if (i === r) continue
+      const factor = rows[i][pivotCol]
+      if (isZero(factor)) continue
+      for (let j = 0; j < totalCols; j++) {
+        rows[i][j] -= factor * rows[r][j]
+      }
+      solution[i] -= factor * solution[r]
+    }
+    basis[r] = headers[pivotCol]
+
+    // Also update zRow so entering variable has reduced cost 0
+    if (!isZero(zRow[pivotCol])) {
+      const factor = zRow[pivotCol]
+      for (let j = 0; j < totalCols; j++) {
+        zRow[j] -= factor * rows[r][j]
+      }
+    }
+  }
+
   // Rebuild a clean zRow when artificials were present, since the original
   // zRow is contaminated with M penalty terms (or stale after pivoting them out).
   let activeZRow = zRow
   if (hadArtificialBasis) {
-    const totalCols = headers.length
     const cleanZRow = new Array(totalCols).fill(0)
     for (let j = 0; j < totalCols - 1; j++) {
       const h = headers[j]
@@ -1125,7 +1170,7 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         const y_rj = rows[rowIdx][j]
         const rc = activeZRow[j]
 
-        if (isZero(y_rj) || isZero(rc)) continue
+        if (isZero(y_rj)) continue
 
         if (y_rj > EPSILON) {
           const bound = rc / y_rj
@@ -1182,20 +1227,27 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
 
       if (isZero(bInv_ri)) continue
 
-      if (isZero(xB_r) && basis[r] !== slackNames[i]) continue
-
       if (bInv_ri > EPSILON) {
         const bound = xB_r / bInv_ri
-        if (bound < allowDecrease) allowDecrease = bound
+        if (problem.constraintsData[i]?.operator === ">=") {
+          if (bound < allowIncrease) allowIncrease = bound
+        } else {
+          if (bound < allowDecrease) allowDecrease = bound
+        }
       } else {
         const bound = xB_r / (-bInv_ri)
-        if (bound < allowIncrease) allowIncrease = bound
+        if (problem.constraintsData[i]?.operator === ">=") {
+          if (bound < allowDecrease) allowDecrease = bound
+        } else {
+          if (bound < allowIncrease) allowIncrease = bound
+        }
       }
     }
 
     let dualPrice = activeZRow[slackCol]
     if (!isMaximization) {
-      dualPrice = -dualPrice
+      const op = problem.constraintsData[i]?.operator
+      if (op === ">=") dualPrice = -dualPrice
     }
 
     constraintValues.push({
