@@ -1213,14 +1213,17 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
   const varNames = generateVariableNames(numVars)
   const slackNames = generateSlackNames(numVars, numConstraints)
 
-  // For integer problems with binary variables fixed to 0 or 1, re-solve as a
-  // pure LP with equality constraints. This gives correct dual prices and reduced
-  // costs from a clean simplex run instead of a B&B node's degenerate tableau.
-  const hasBinary = problem.variableTypes?.some(t => t === "binary") ?? false
-  if (hasBinary && result.optimal && result.variables) {
+  // For integer programming results (binary/integer variables fixed to 0 or 1),
+  // re-solve as a pure LP with equality constraints.  This gives correct dual
+  // prices and reduced costs from a clean simplex run instead of a B&B node's
+  // degenerate tableau.
+  const hasIntTypes = problem.variableTypes?.some(t => t === "integer" || t === "binary") ?? false
+  const isIntMethod = result.method === "INTEGER_PROGRAMMING"
+  if ((isIntMethod || hasIntTypes) && result.optimal && result.variables) {
     let allFixed = true
     for (let v = 0; v < numVars; v++) {
-      if (problem.variableTypes[v] === "binary") {
+      const vt = problem.variableTypes?.[v]
+      if (vt === "integer" || vt === "binary") {
         const val = result.variables[varNames[v]]
         if (val !== 0 && val !== 1) { allFixed = false; break }
       }
@@ -1228,7 +1231,8 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
     if (allFixed) {
       const eqConstraints: ConstraintRow[] = []
       for (let v = 0; v < numVars; v++) {
-        if (problem.variableTypes[v] !== "binary") continue
+        const vt = problem.variableTypes?.[v]
+        if (vt !== "integer" && vt !== "binary") continue
         const coeffs = new Array(numVars).fill(0)
         coeffs[v] = 1
         eqConstraints.push({
@@ -1257,10 +1261,9 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         origDualPrices[key] = lpSensitivity.dualPrices[key] ?? 0
       }
 
-      // Compute binary variable reduced costs from the equality constraint
-      // artificial columns.  In the LP tableau, artificials for equality
-      // constraints come after artificials for original ≥ constraints.
-      // RC(binary) = dual price of its equality constraint = -zRow[A] for MIN.
+      // Compute reduced costs from the LP result's clean zRow.
+      // For binary/integer vars fixed by equality constraints, the RC equals
+      // the dual price of the equality constraint (= -zRow[artificial] for MIN).
       const origGeqCount = problem.constraintsData.filter(c => c.operator === ">=").length
       const finalRCs: Record<string, number> = {}
       if (lpResult.steps.length > 0) {
@@ -1291,7 +1294,8 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
           const name = varNames[v]
           const vc = lpH.indexOf(name)
           if (vc < 0) continue
-          if (problem.variableTypes[v] === "binary") {
+          const vt = problem.variableTypes?.[v]
+          if (vt === "integer" || vt === "binary") {
             const aName = `A${origGeqCount + eqIdx + 1}`
             const ac = lpH.indexOf(aName)
             let rc = 0
