@@ -1046,6 +1046,80 @@ export function solveIntegerProgramming(problem: ProblemData): SimplexResult {
   bestResult.timeMs = performance.now() - startTime
   bestResult.statusExplanation =
     "Solución óptima entera encontrada mediante Branch and Bound. Todos los valores de las variables enteras cumplen con las restricciones de integralidad."
+
+  // Post-process: pivot binary variables at value 1 (upper bound) out of the basis,
+  // swapping with their ≤1 constraint slack. This matches LINDO's convention where
+  // variables at their upper bound are non-basic (their reduced cost reflects the
+  // dual price of the bound constraint).
+  if (hasBinary && bestResult.optimal && bestResult.steps.length > 0) {
+    const lastStep = bestResult.steps[bestResult.steps.length - 1]
+    const { headers, rows, basis, solution } = lastStep.table
+    const totalCols = headers.length
+    let binaryOffset = 0
+    for (let vi = 0; vi < problem.variables; vi++) {
+      if (problem.variableTypes[vi] !== "binary") continue
+      const varName = `X${vi + 1}`
+      const slackName = `H${problem.constraints + binaryOffset + 1}`
+      const basisRow = basis.indexOf(varName)
+      if (basisRow === -1) { binaryOffset++; continue }
+      if (Math.abs(solution[basisRow] - 1) > 1e-6) { binaryOffset++; continue }
+      const slackCol = headers.indexOf(slackName)
+      if (slackCol === -1) { binaryOffset++; continue }
+      if (basis.includes(slackName)) { binaryOffset++; continue }
+      if (isZero(rows[basisRow][slackCol])) { binaryOffset++; continue }
+
+      const pivotVal = rows[basisRow][slackCol]
+      for (let j = 0; j < totalCols; j++) {
+        rows[basisRow][j] /= pivotVal
+      }
+      solution[basisRow] /= pivotVal
+      for (let i = 0; i < rows.length; i++) {
+        if (i === basisRow) continue
+        const factor = rows[i][slackCol]
+        if (isZero(factor)) continue
+        for (let j = 0; j < totalCols; j++) {
+          rows[i][j] -= factor * rows[basisRow][j]
+        }
+        solution[i] -= factor * solution[basisRow]
+      }
+      basis[basisRow] = slackName
+
+      binaryOffset++
+    }
+
+    // Rebuild zRow after pivoting
+    const activeZRow = new Array(totalCols).fill(0)
+    for (let j = 0; j < totalCols - 1; j++) {
+      const h = headers[j]
+      const match = h.match(/^X(\d+)$/)
+      if (match) {
+        const varIdx = parseInt(match[1]) - 1
+        if (varIdx >= 0 && varIdx < problem.variables) {
+          activeZRow[j] = problem.problemType === "MAX" ? -problem.objective[varIdx] : problem.objective[varIdx]
+        }
+      }
+    }
+    for (let i = 0; i < basis.length; i++) {
+      const b = basis[i]
+      const colIdx = headers.indexOf(b)
+      if (colIdx >= 0 && !isZero(activeZRow[colIdx])) {
+        const factor = activeZRow[colIdx]
+        for (let j = 0; j < totalCols; j++) {
+          activeZRow[j] -= factor * rows[i][j]
+        }
+      }
+    }
+
+    if (!bestResult.reducedCosts) bestResult.reducedCosts = {}
+    for (let v = 0; v < problem.variables; v++) {
+      const colIdx = headers.indexOf(`X${v + 1}`)
+      if (colIdx >= 0) {
+        const raw = problem.problemType === "MAX" ? -activeZRow[colIdx] : activeZRow[colIdx]
+        bestResult.reducedCosts[`X${v + 1}`] = Math.max(0, Math.round(raw * 1e6) / 1e6)
+      }
+    }
+  }
+
   return bestResult
 }
 
@@ -1209,6 +1283,43 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
       solution[i] -= factor * solution[r]
     }
     basis[r] = headers[pivotCol]
+  }
+
+  // Pivot binary variables at their upper bound (value=1) with their ≤1 constraint
+  // slack, so they become non-basic (matching LINDO's convention).
+  const hasIntegerVars = problem.variableTypes?.some(t => t === "binary") ?? false
+  if (hasIntegerVars && result.method === "INTEGER_PROGRAMMING") {
+    let binaryOffset = 0
+    for (let vi = 0; vi < numVars; vi++) {
+      if (problem.variableTypes[vi] !== "binary") continue
+      const varName = `X${vi + 1}`
+      const slackName = `H${numConstraints + binaryOffset + 1}`
+      const basisRow = basis.indexOf(varName)
+      if (basisRow === -1) { binaryOffset++; continue }
+      if (Math.abs(solution[basisRow] - 1) > 1e-6) { binaryOffset++; continue }
+      const slackCol = headers.indexOf(slackName)
+      if (slackCol === -1) { binaryOffset++; continue }
+      if (basis.includes(slackName)) { binaryOffset++; continue }
+      if (isZero(rows[basisRow][slackCol])) { binaryOffset++; continue }
+
+      const pivotVal = rows[basisRow][slackCol]
+      for (let j = 0; j < totalCols; j++) {
+        rows[basisRow][j] /= pivotVal
+      }
+      solution[basisRow] /= pivotVal
+      for (let i = 0; i < rows.length; i++) {
+        if (i === basisRow) continue
+        const factor = rows[i][slackCol]
+        if (isZero(factor)) continue
+        for (let j = 0; j < totalCols; j++) {
+          rows[i][j] -= factor * rows[basisRow][j]
+        }
+        solution[i] -= factor * solution[basisRow]
+      }
+      basis[basisRow] = slackName
+
+      binaryOffset++
+    }
   }
 
   // Always rebuild the zRow from the original objective coefficients.
