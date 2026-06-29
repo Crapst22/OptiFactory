@@ -224,15 +224,6 @@ export default function SolvePage() {
 
   const slackEntries = Object.entries(result.slackVariables ?? {})
   const variableEntries = Object.entries(result.variables ?? {})
-
-  const reducedCosts: Record<string, number> = {}
-  const lastStep = result.steps?.[result.steps.length - 1]
-  if (lastStep) {
-    const { headers, zRow } = lastStep.table
-    for (let j = 0; j < headers.length - 1; j++) {
-      reducedCosts[headers[j]] = zRow[j]
-    }
-  }
   const bindingConstraints = slackEntries
     .filter(([, value]) => Math.abs(value) < 1e-10)
     .map(([key]) => key)
@@ -392,7 +383,7 @@ export default function SolvePage() {
                     <TableCell className="font-medium">{key}</TableCell>
                     <TableCell>{formatNumber(value)}</TableCell>
                     <TableCell className="font-mono text-xs">
-                      {formatNumber(reducedCosts[key] ?? 0)}
+                      {formatNumber(result.reducedCosts?.[key] ?? 0)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -845,15 +836,6 @@ function ExportDialog({
     if (!problem || !result) return
     setExporting("pdf")
     try {
-      const reducedCosts: Record<string, number> = {}
-      const lastStep = result.steps?.[result.steps.length - 1]
-      if (lastStep) {
-        const { headers, zRow } = lastStep.table
-        for (let j = 0; j < headers.length - 1; j++) {
-          reducedCosts[headers[j]] = zRow[j]
-        }
-      }
-
       const { default: jsPDF } = await import("jspdf")
       const doc = new jsPDF()
       const pageW = doc.internal.pageSize.getWidth()
@@ -909,7 +891,7 @@ function ExportDialog({
       y += 8
       doc.setFontSize(10)
       for (const [key, value] of Object.entries(result.variables)) {
-        const rc = reducedCosts[key] ?? 0
+        const rc = result.reducedCosts?.[key] ?? 0
         doc.text(`${key} = ${formatNumber(value)}  (Costo Reducido: ${formatNumber(rc)})`, 14, y)
         y += 6
       }
@@ -936,16 +918,8 @@ function ExportDialog({
     if (!result) return
     setExporting("csv")
     try {
-      const exportRC: Record<string, number> = {}
-      const ls = result.steps?.[result.steps.length - 1]
-      if (ls) {
-        const { headers, zRow } = ls.table
-        for (let j = 0; j < headers.length - 1; j++) {
-          exportRC[headers[j]] = zRow[j]
-        }
-      }
       const headers = ["Variable", "Valor", "Costo Reducido"]
-      const varRows = Object.entries(result.variables).map(([k, v]) => `${k},${v},${exportRC[k] ?? 0}`)
+      const varRows = Object.entries(result.variables).map(([k, v]) => `${k},${v},${result.reducedCosts?.[k] ?? 0}`)
       const slackRows = Object.entries(result.slackVariables ?? {}).map(([k, v]) => `${k},${v}`)
       const meta = [
         "Optimo,Resultado",

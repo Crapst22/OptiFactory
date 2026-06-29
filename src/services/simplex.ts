@@ -240,11 +240,24 @@ function extractResult(
       "Se ha encontrado la solución óptima. No es posible mejorar el valor de la función objetivo respetando todas las restricciones."
   }
 
+  // Compute reduced costs for each variable from the final zRow.
+  // For MIN: reduced cost = max(0, zRow[col])  (zRow ≥ 0 at optimal MIN)
+  // For MAX: reduced cost = max(0, -zRow[col]) (zRow ≤ 0 at optimal MAX)
+  const reducedCosts: Record<string, number> = {}
+  for (let j = 0; j < numVars; j++) {
+    const colIdx = headers.indexOf(varNames[j])
+    if (colIdx >= 0) {
+      const raw = isMaximization ? -zRow[colIdx] : zRow[colIdx]
+      reducedCosts[varNames[j]] = Math.max(0, Math.round(raw * 1e6) / 1e6)
+    }
+  }
+
   return {
     optimal: status === "OPTIMAL",
     optimalValue: Math.round(optimalValue * 1e6) / 1e6,
     variables,
     slackVariables,
+    reducedCosts,
     steps,
     method: "SIMPLEX",
     iterations: phase2Count,
@@ -609,6 +622,56 @@ function solveTwoPhaseSimplex(problem: ProblemData, startTime: number): SimplexR
     pivot(tableau, pivotRow, pivotCol, basis, headers)
     iteration++
     phase2Count++
+  }
+
+  // Post-processing: pivot degenerate structural X-variables (value=0) out of the basis,
+  // replacing them with non-basic slack variables. This makes the basis and zRow match
+  // the output of solvers like LINDO (preferring slacks over degenerate structurals).
+  const zRowFinal = tableau[tableau.length - 1]
+  const totalColsFinal = tableau[0].length
+  for (let r = 0; r < numConstraints; r++) {
+    if (!isZero(tableau[r][totalColsFinal - 1])) continue
+    const bv = basis[r]
+    if (bv.startsWith("H") || bv.startsWith("A")) continue
+
+    let pivotCol = -1
+    for (let j = 0; j < totalColsFinal - 1; j++) {
+      if (basis.includes(headers[j])) continue
+      if (!headers[j].startsWith("H")) continue
+      if (isZero(tableau[r][j])) continue
+      if (pivotCol === -1) pivotCol = j
+    }
+    if (pivotCol === -1) continue
+
+    const pivotVal = tableau[r][pivotCol]
+    for (let j = 0; j < totalColsFinal; j++) {
+      tableau[r][j] /= pivotVal
+    }
+    for (let i = 0; i < tableau.length; i++) {
+      if (i === r) continue
+      const factor = tableau[i][pivotCol]
+      if (isZero(factor)) continue
+      for (let j = 0; j < totalColsFinal; j++) {
+        tableau[i][j] -= factor * tableau[r][j]
+      }
+    }
+    basis[r] = headers[pivotCol]
+  }
+
+  // Rebuild zRow from original objective to ensure clean reduced costs
+  for (let j = 0; j < totalColsFinal - 1; j++) {
+    zRowFinal[j] = originalObjCoeffs[j]
+  }
+  zRowFinal[totalColsFinal - 1] = 0
+  for (let i = 0; i < numConstraints; i++) {
+    const b = basis[i]
+    const colIdx = headers.indexOf(b)
+    if (colIdx >= 0 && !isZero(zRowFinal[colIdx])) {
+      const factor = zRowFinal[colIdx]
+      for (let j = 0; j < totalColsFinal; j++) {
+        zRowFinal[j] -= factor * tableau[i][j]
+      }
+    }
   }
 
   const result = extractResult(

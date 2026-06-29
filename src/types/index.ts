@@ -48,6 +48,7 @@ export interface SimplexResult {
   optimalValue: number
   variables: Record<string, number>
   slackVariables: Record<string, number>
+  reducedCosts?: Record<string, number>
   steps: SimplexStep[]
   method: SolveMethod
   iterations: number
