@@ -30,7 +30,7 @@ import {
   Zap,
   XCircle,
 } from "lucide-react"
-import { getCurrentResult } from "@/lib/store"
+import { getCurrentResult, getCurrentProblem } from "@/lib/store"
 import { formatNumber } from "@/utils/format"
 import type { SimplexResult } from "@/types"
 
@@ -109,6 +109,13 @@ export default function ResultsPage() {
   const bindingConstraints = slackEntries
     .filter(([, value]) => Math.abs(value) < 1e-10)
     .map(([key]) => key)
+  const problem = getCurrentProblem()
+  const constraintSlackEntries = problem?.constraintsData.map((c, i) => {
+    const slackName = `H${i + 1}`
+    const slackValue = result.slackVariables?.[slackName] ?? 0
+    const isBinding = Math.abs(slackValue) < 1e-10
+    return { index: i, slackValue, isBinding, operator: c.operator }
+  }) ?? []
 
   const StatusIcon = statusIcons[result.status] ?? Info
 
@@ -184,40 +191,33 @@ export default function ResultsPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Cpu className="size-5 text-primary" />
-            Recursos Utilizados y Remanentes
+            Holgura y Excedente por Restricción
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {slackEntries.length === 0 ? (
+          {constraintSlackEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No hay información de recursos disponible.
+              No hay información disponible.
             </p>
           ) : (
-            <div className="space-y-3">
-              {slackEntries.map(([key, value]) => {
-                const isBinding = Math.abs(value) < 1e-10
+            <div className="divide-y rounded-lg border">
+              {constraintSlackEntries.map(({ index, slackValue, isBinding, operator }) => {
+                const isSurplus = operator === ">="
                 return (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">
-                        {key.replace("H", "Recurso ")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
+                  <div key={index} className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-sm font-medium shrink-0 w-24">
+                        Restricción {index + 1}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
                         {isBinding
-                          ? "Este recurso se ha consumido por completo"
-                          : `Quedan ${formatNumber(value)} unidades disponibles`}
-                      </p>
+                          ? isSurplus ? "Excedente = 0" : "Holgura = 0"
+                          : `${isSurplus ? "Excedente" : "Holgura"} = ${formatNumber(slackValue)}`
+                        }
+                      </span>
                     </div>
-                    <Badge
-                      variant={isBinding ? "destructive" : "secondary"}
-                      className="text-xs"
-                    >
-                      {isBinding
-                        ? "Agotado"
-                        : `${formatNumber(value)} restante`}
+                    <Badge variant={isBinding ? "destructive" : "secondary"} className="text-xs shrink-0 ml-3">
+                      {isBinding ? "Vinculante" : `${formatNumber(slackValue)}`}
                     </Badge>
                   </div>
                 )

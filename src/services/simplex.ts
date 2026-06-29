@@ -372,12 +372,32 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
     }
   }
 
+  // Rebuild zRow from original objective to ensure clean reduced costs
+  const finalZRow = tableau[tableau.length - 1]
+  const totalColsFinal = tableau[0].length
+  const numVars = problem.variables
+  const numConstraints = problem.constraints
+  for (let j = 0; j < totalColsFinal - 1; j++) {
+    finalZRow[j] = j < numVars ? -objective[j] : 0
+  }
+  finalZRow[totalColsFinal - 1] = 0
+  for (let i = 0; i < numConstraints; i++) {
+    const b = basis[i]
+    const colIdx = headers.indexOf(b)
+    if (colIdx >= 0 && !isZero(finalZRow[colIdx])) {
+      const factor = finalZRow[colIdx]
+      for (let j = 0; j < totalColsFinal; j++) {
+        finalZRow[j] -= factor * tableau[i][j]
+      }
+    }
+  }
+
   const result = extractResult(
     tableau,
     basis,
     headers,
     varNames,
-    problem.constraints,
+    numConstraints,
     isMaximization,
     steps,
     iteration
@@ -1108,6 +1128,14 @@ function removeArtificialsFromBasis(
 }
 
 export function calculateSensitivity(result: SimplexResult, problem: ProblemData): SensitivityAnalysis {
+  // For integer programming, solve the LP relaxation on the original problem
+  // to get correct sensitivity (branch-and-bound adds <=1 bounds and branch cuts,
+  // making the stored tableau incompatible with the original problem dimensions)
+  if (result.method === "INTEGER_PROGRAMMING") {
+    const relaxationResult = solveRelaxation(problem)
+    return calculateSensitivity(relaxationResult, problem)
+  }
+
   const lastStep = result.steps[result.steps.length - 1]
   if (!lastStep || !lastStep.isOptimal) {
     throw new Error("Se requiere una solución óptima para el análisis de sensibilidad.")
