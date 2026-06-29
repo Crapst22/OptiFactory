@@ -166,12 +166,12 @@ export default function NewProblemPage() {
                 value={[problem.variables]}
                 onValueChange={(value) => { const v = Array.isArray(value) ? value[0] : value; setVariables(v) }}
                 min={2}
-                max={10}
+                max={20}
                 step={1}
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>2</span>
-                <span>10</span>
+                <span>20</span>
               </div>
             </div>
 

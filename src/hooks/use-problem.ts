@@ -34,7 +34,7 @@ export function useProblem() {
 
   const setVariables = useCallback((n: number) => {
     setProblem((p) => {
-      const vars = Math.max(2, Math.min(10, n))
+      const vars = Math.max(2, Math.min(20, n))
       const obj = Array(vars).fill(0).map((_, i) => p.objective[i] ?? 10)
       const cons = p.constraintsData.map((row) => ({
         ...row,
