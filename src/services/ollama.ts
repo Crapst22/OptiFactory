@@ -61,7 +61,7 @@ export function extractProblemFromResponse(text: string): { displayText: string;
   try {
     const data = JSON.parse(jsonStr)
 
-    const vars = Math.max(2, Math.min(10, data.variables || 2))
+    const vars = Math.max(2, Math.min(20, data.variables || 2))
     const cons = data.constraintsData?.length || 2
 
     const problem: Partial<ProblemData> = {
