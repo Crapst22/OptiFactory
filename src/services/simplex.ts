@@ -1219,15 +1219,18 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
   // degenerate tableau.
   const hasIntTypes = problem.variableTypes?.some(t => t === "integer" || t === "binary") ?? false
   const isIntMethod = result.method === "INTEGER_PROGRAMMING"
+  console.log("SENSITIVITY DEBUG:", { hasIntTypes, isIntMethod, optimal: result.optimal, hasVars: !!result.variables, method: result.method, varTypes: problem.variableTypes })
   if ((isIntMethod || hasIntTypes) && result.optimal && result.variables) {
     let allFixed = true
     for (let v = 0; v < numVars; v++) {
       const vt = problem.variableTypes?.[v]
       if (vt === "integer" || vt === "binary") {
         const val = result.variables[varNames[v]]
+        console.log(`  var ${varNames[v]} = ${val} (type=${vt})`)
         if (!(Math.abs(val) < 1e-9 || Math.abs(val - 1) < 1e-9)) { allFixed = false; break }
       }
     }
+    console.log("  allFixed =", allFixed)
     if (allFixed) {
       const eqConstraints: ConstraintRow[] = []
       for (let v = 0; v < numVars; v++) {
@@ -1251,7 +1254,9 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         constraintsData: [...problem.constraintsData, ...eqConstraints],
         variableTypes: new Array(numVars).fill("positive"),
       }
+      console.log("SENSITIVITY DEBUG: Calling solveSimplex for LP re-solve with", lpProblem.constraints, "constraints")
       const lpResult = solveSimplex({ ...lpProblem, method: "BIG_M" })
+      console.log("SENSITIVITY DEBUG: LP result optimal=", lpResult.optimal, "status=", lpResult.status, "iterations=", lpResult.iterations)
       const lpSensitivity = calculateSensitivity(lpResult, lpProblem)
 
       // Extract dual prices for original (non-equality) constraints
@@ -1317,6 +1322,7 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         }
       }
 
+      console.log("SENSITIVITY DEBUG: LP re-solve SUCCESS, returning clean LP result")
       return {
         ...lpSensitivity,
         dualPrices: origDualPrices,
@@ -1324,6 +1330,7 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
     }
   }
 
+  console.log("SENSITIVITY DEBUG: Falling through to OLD path (B&B tableau)")
   // Remove artificial variables from the basis (degenerate at value 0)
   removeArtificialsFromBasis(headers, rows, basis, solution)
 
