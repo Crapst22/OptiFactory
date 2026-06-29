@@ -966,6 +966,52 @@ export function solveProblem(problem: ProblemData): SimplexResult {
   return result
 }
 
+function removeArtificialsFromBasis(
+  headers: string[],
+  rows: number[][],
+  basis: string[],
+  solution: number[]
+): void {
+  const numRows = rows.length
+  const cols = headers.length
+
+  for (let r = 0; r < numRows; r++) {
+    if (!basis[r].startsWith("A")) continue
+    if (!isZero(solution[r])) continue
+
+    let pivotCol = -1
+    for (let j = 0; j < cols - 1; j++) {
+      if (j === cols - 1) continue
+      const h = headers[j]
+      if (h.startsWith("A")) continue
+      if (basis.includes(h)) continue
+      if (isZero(rows[r][j])) continue
+      if (pivotCol === -1 || (!headers[pivotCol].startsWith("X") && h.startsWith("X"))) {
+        pivotCol = j
+      }
+    }
+    if (pivotCol === -1) continue
+
+    const pivot = rows[r][pivotCol]
+    for (let j = 0; j < cols; j++) {
+      rows[r][j] /= pivot
+    }
+    solution[r] /= pivot
+
+    for (let i = 0; i < numRows; i++) {
+      if (i === r) continue
+      const factor = rows[i][pivotCol]
+      if (isZero(factor)) continue
+      for (let j = 0; j < cols; j++) {
+        rows[i][j] -= factor * rows[r][j]
+      }
+      solution[i] -= factor * solution[r]
+    }
+
+    basis[r] = headers[pivotCol]
+  }
+}
+
 export function calculateSensitivity(result: SimplexResult, problem: ProblemData): SensitivityAnalysis {
   const lastStep = result.steps[result.steps.length - 1]
   if (!lastStep || !lastStep.isOptimal) {
@@ -980,6 +1026,40 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
   const isMaximization = problem.problemType === "MAX"
   const varNames = generateVariableNames(numVars)
   const slackNames = generateSlackNames(numVars, numConstraints)
+
+  // Remove artificial variables from the basis (degenerate at value 0)
+  // to allow proper sensitivity analysis with the original objective.
+  const hadArtificialBasis = basis.some((b) => b.startsWith("A"))
+  removeArtificialsFromBasis(headers, rows, basis, solution)
+
+  // Rebuild a clean zRow when artificials were present, since the original
+  // zRow is contaminated with M penalty terms (or stale after pivoting them out).
+  let activeZRow = zRow
+  if (hadArtificialBasis) {
+    const totalCols = headers.length
+    const cleanZRow = new Array(totalCols).fill(0)
+    for (let j = 0; j < totalCols - 1; j++) {
+      const h = headers[j]
+      const match = h.match(/^X(\d+)$/)
+      if (match) {
+        const varIdx = parseInt(match[1]) - 1
+        if (varIdx >= 0 && varIdx < numVars) {
+          cleanZRow[j] = isMaximization ? -problem.objective[varIdx] : problem.objective[varIdx]
+        }
+      }
+    }
+    for (let i = 0; i < basis.length; i++) {
+      const b = basis[i]
+      const colIdx = headers.indexOf(b)
+      if (colIdx >= 0 && !isZero(cleanZRow[colIdx])) {
+        const factor = cleanZRow[colIdx]
+        for (let j = 0; j < totalCols; j++) {
+          cleanZRow[j] -= factor * rows[i][j]
+        }
+      }
+    }
+    activeZRow = cleanZRow
+  }
 
   const basicColIndices = new Set<number>()
   for (const bv of basis) {
@@ -1008,9 +1088,10 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
       for (let j = 0; j < headers.length - 1; j++) {
         if (basicColIndices.has(j)) continue
         if (headers[j].startsWith("A")) continue
+        if (activeZRow[j] < -EPSILON) continue
 
         const y_rj = rows[rowIdx][j]
-        const rc = zRow[j]
+        const rc = activeZRow[j]
 
         if (isZero(y_rj) || isZero(rc)) continue
 
@@ -1031,12 +1112,13 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         allowDecrease = maxInc
       }
     } else {
+      const rc = Math.max(0, activeZRow[colIdx])
       if (isMaximization) {
-        allowIncrease = zRow[colIdx]
+        allowIncrease = rc
         allowDecrease = Infinity
       } else {
         allowIncrease = Infinity
-        allowDecrease = zRow[colIdx]
+        allowDecrease = rc
       }
     }
 
@@ -1067,6 +1149,8 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
 
       if (isZero(bInv_ri)) continue
 
+      if (isZero(xB_r) && basis[r] !== slackNames[i]) continue
+
       if (bInv_ri > EPSILON) {
         const bound = xB_r / bInv_ri
         if (bound < allowDecrease) allowDecrease = bound
@@ -1076,7 +1160,7 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
       }
     }
 
-    let dualPrice = zRow[slackCol]
+    let dualPrice = activeZRow[slackCol]
     if (!isMaximization) {
       dualPrice = -dualPrice
     }
