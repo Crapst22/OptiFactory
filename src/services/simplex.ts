@@ -1314,24 +1314,20 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
           for (let j = 0; j < lpHdrs.length - 1; j++) {
             if (basicColIndices.has(j)) continue
             if (lpHdrs[j].startsWith("A")) continue
-            if (lpZ[j] < -1e-10) continue
+            if (lpZ[j] > 1e-10) continue
             const y_rj = lpRows[rowIdx][j]
             if (Math.abs(y_rj) < 1e-10) continue
+            const rc = -lpZ[j]
             if (y_rj > 1e-10) {
-              const bound = lpZ[j] / y_rj
+              const bound = rc / y_rj
               if (bound < allowDecrease) allowDecrease = bound
             } else {
-              const bound = lpZ[j] / (-y_rj)
+              const bound = rc / (-y_rj)
               if (bound < allowIncrease) allowIncrease = bound
             }
           }
-          if (!isMaximization) {
-            const tmp = allowIncrease
-            allowIncrease = allowDecrease
-            allowDecrease = tmp
-          }
         } else {
-          const rcVal = Math.max(0, isMaximization ? -lpZ[colIdx] : lpZ[colIdx])
+          const rcVal = Math.max(0, -lpZ[colIdx])
           if (isMaximization) {
             allowIncrease = rcVal
           } else {
@@ -1473,10 +1469,10 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
       for (let j = 0; j < headers.length - 1; j++) {
         if (basicColIndices.has(j)) continue
         if (headers[j].startsWith("A")) continue
-        if (activeZRow[j] < -EPSILON) continue
+        if (activeZRow[j] > EPSILON) continue
 
         const y_rj = rows[rowIdx][j]
-        const rc = activeZRow[j]
+        const rc = -activeZRow[j]
 
         if (isZero(y_rj)) continue
 
@@ -1489,15 +1485,10 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         }
       }
 
-      if (isMaximization) {
-        allowIncrease = maxInc
-        allowDecrease = maxDec
-      } else {
-        allowIncrease = maxDec
-        allowDecrease = maxInc
-      }
+      allowIncrease = maxInc
+      allowDecrease = maxDec
     } else {
-      const rc = Math.max(0, activeZRow[colIdx])
+      const rc = Math.max(0, -activeZRow[colIdx])
       if (isMaximization) {
         allowIncrease = rc
         allowDecrease = Infinity
