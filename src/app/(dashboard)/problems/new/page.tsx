@@ -365,7 +365,7 @@ export default function NewProblemPage() {
                               ? "Entera"
                               : type === "binary"
                                 ? "Binaria"
-                                : "Libre"}
+                                : "Continua"}
                         </Label>
                       </div>
                     )
