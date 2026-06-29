@@ -106,6 +106,16 @@ export default function ResultsPage() {
 
   const slackEntries = Object.entries(result.slackVariables ?? {})
   const variableEntries = Object.entries(result.variables ?? {})
+
+  // Extract reduced costs from the last step's zRow
+  const reducedCosts: Record<string, number> = {}
+  const lastStep = result.steps?.[result.steps.length - 1]
+  if (lastStep) {
+    const { headers, zRow } = lastStep.table
+    for (let j = 0; j < headers.length - 1; j++) {
+      reducedCosts[headers[j]] = zRow[j]
+    }
+  }
   const bindingConstraints = slackEntries
     .filter(([, value]) => Math.abs(value) < 1e-10)
     .map(([key]) => key)
@@ -156,6 +166,7 @@ export default function ResultsPage() {
                 <TableRow>
                   <TableHead>Variable</TableHead>
                   <TableHead>Valor</TableHead>
+                  <TableHead>Costo Reducido</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -163,6 +174,9 @@ export default function ResultsPage() {
                   <TableRow key={key}>
                     <TableCell className="font-medium">{key}</TableCell>
                     <TableCell>{formatNumber(value)}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {formatNumber(reducedCosts[key] ?? 0)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
