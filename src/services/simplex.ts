@@ -1288,8 +1288,67 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         }
       }
 
+      // Compute objective coefficient ranges from LP result using standard formulas.
+      const lpLastStep = lpResult.steps[lpResult.steps.length - 1]
+      const lpHdrs = lpLastStep.table.headers
+      const lpRows = lpLastStep.table.rows
+      const lpSolution = lpLastStep.table.solution
+      const lpBasis = lpLastStep.table.basis
+      const lpTotalCols = lpHdrs.length
+      const basicColIndices = new Set<number>()
+      for (const bv of lpBasis) {
+        const idx = lpHdrs.indexOf(bv)
+        if (idx !== -1) basicColIndices.add(idx)
+      }
+      const objCoeffsResult: SensitivityCoefficient[] = []
+      for (let v = 0; v < numVars; v++) {
+        const varName = varNames[v]
+        const colIdx = lpHdrs.indexOf(varName)
+        if (colIdx === -1) continue
+        const currentValue = problem.objective[v]
+        const isBasic = basicColIndices.has(colIdx)
+        let allowIncrease = Infinity
+        let allowDecrease = Infinity
+        if (isBasic) {
+          const rowIdx = lpBasis.indexOf(varName)
+          for (let j = 0; j < lpHdrs.length - 1; j++) {
+            if (basicColIndices.has(j)) continue
+            if (lpHdrs[j].startsWith("A")) continue
+            if (lpZ[j] < -1e-10) continue
+            const y_rj = lpRows[rowIdx][j]
+            if (Math.abs(y_rj) < 1e-10) continue
+            if (y_rj > 1e-10) {
+              const bound = lpZ[j] / y_rj
+              if (bound < allowDecrease) allowDecrease = bound
+            } else {
+              const bound = lpZ[j] / (-y_rj)
+              if (bound < allowIncrease) allowIncrease = bound
+            }
+          }
+          if (!isMaximization) {
+            const tmp = allowIncrease
+            allowIncrease = allowDecrease
+            allowDecrease = tmp
+          }
+        } else {
+          const rcVal = Math.max(0, isMaximization ? -lpZ[colIdx] : lpZ[colIdx])
+          if (isMaximization) {
+            allowIncrease = rcVal
+          } else {
+            allowDecrease = rcVal
+          }
+        }
+        objCoeffsResult.push({
+          variable: varName,
+          currentValue,
+          allowIncrease,
+          allowDecrease,
+          isBasic,
+        })
+      }
+
       return {
-        objectiveCoefficients: [],
+        objectiveCoefficients: objCoeffsResult,
         constraintValues,
         bindingConstraints: constraintValues.filter(c => c.isBinding).map(c => c.constraint),
         slackValues: lpResult.slackVariables,
