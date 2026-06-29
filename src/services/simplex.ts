@@ -1225,7 +1225,7 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
       const vt = problem.variableTypes?.[v]
       if (vt === "integer" || vt === "binary") {
         const val = result.variables[varNames[v]]
-        if (val !== 0 && val !== 1) { allFixed = false; break }
+        if (!(Math.abs(val) < 1e-9 || Math.abs(val - 1) < 1e-9)) { allFixed = false; break }
       }
     }
     if (allFixed) {
