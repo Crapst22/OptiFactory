@@ -1114,7 +1114,7 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
   }
 
   const { table } = lastStep
-  const { headers, rows, zRow, basis, solution } = table
+  const { headers, rows, basis, solution } = table
 
   const numVars = problem.variables
   const numConstraints = problem.constraints
@@ -1123,31 +1123,26 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
   const slackNames = generateSlackNames(numVars, numConstraints)
 
   // Remove artificial variables from the basis (degenerate at value 0)
-  // to allow proper sensitivity analysis with the original objective.
-  const hadArtificialBasis = basis.some((b) => b.startsWith("A"))
   removeArtificialsFromBasis(headers, rows, basis, solution)
 
   const totalCols = headers.length
 
   // After removing artificials, also pivot degenerate structural variables (value=0)
   // out of the basis, preferring to bring in non-basic slack variables.
-  // This produces dual prices that match LINDO (slack basic → dual=0 for that constraint).
   for (let r = 0; r < rows.length; r++) {
-    if (!isZero(solution[r])) continue          // skip non-degenerate (value ≠ 0)
+    if (!isZero(solution[r])) continue
     const bv = basis[r]
-    if (bv.startsWith("H") || bv.startsWith("A")) continue  // only pivot X vars out
+    if (bv.startsWith("H") || bv.startsWith("A")) continue
 
-    // Try to pivot in any non-basic slack variable
     let pivotCol = -1
     for (let j = 0; j < totalCols - 1; j++) {
-      if (basis.includes(headers[j])) continue  // skip basic columns
+      if (basis.includes(headers[j])) continue
       if (!headers[j].startsWith("H")) continue
       if (isZero(rows[r][j])) continue
       if (pivotCol === -1) pivotCol = j
     }
     if (pivotCol === -1) continue
 
-    // Degenerate pivot: entering variable enters at value 0, obj doesn't change
     const pivotVal = rows[r][pivotCol]
     for (let j = 0; j < totalCols; j++) {
       rows[r][j] /= pivotVal
@@ -1163,42 +1158,31 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
       solution[i] -= factor * solution[r]
     }
     basis[r] = headers[pivotCol]
+  }
 
-    // Also update zRow so entering variable has reduced cost 0
-    if (!isZero(zRow[pivotCol])) {
-      const factor = zRow[pivotCol]
-      for (let j = 0; j < totalCols; j++) {
-        zRow[j] -= factor * rows[r][j]
+  // Always rebuild the zRow from the original objective coefficients.
+  // This ensures clean reduced costs regardless of the solver method used
+  // (two-phase, Big M, dual simplex, etc.).
+  const activeZRow = new Array(totalCols).fill(0)
+  for (let j = 0; j < totalCols - 1; j++) {
+    const h = headers[j]
+    const match = h.match(/^X(\d+)$/)
+    if (match) {
+      const varIdx = parseInt(match[1]) - 1
+      if (varIdx >= 0 && varIdx < numVars) {
+        activeZRow[j] = isMaximization ? -problem.objective[varIdx] : problem.objective[varIdx]
       }
     }
   }
-
-  // Rebuild a clean zRow when artificials were present, since the original
-  // zRow is contaminated with M penalty terms (or stale after pivoting them out).
-  let activeZRow = zRow
-  if (hadArtificialBasis) {
-    const cleanZRow = new Array(totalCols).fill(0)
-    for (let j = 0; j < totalCols - 1; j++) {
-      const h = headers[j]
-      const match = h.match(/^X(\d+)$/)
-      if (match) {
-        const varIdx = parseInt(match[1]) - 1
-        if (varIdx >= 0 && varIdx < numVars) {
-          cleanZRow[j] = isMaximization ? -problem.objective[varIdx] : problem.objective[varIdx]
-        }
+  for (let i = 0; i < basis.length; i++) {
+    const b = basis[i]
+    const colIdx = headers.indexOf(b)
+    if (colIdx >= 0 && !isZero(activeZRow[colIdx])) {
+      const factor = activeZRow[colIdx]
+      for (let j = 0; j < totalCols; j++) {
+        activeZRow[j] -= factor * rows[i][j]
       }
     }
-    for (let i = 0; i < basis.length; i++) {
-      const b = basis[i]
-      const colIdx = headers.indexOf(b)
-      if (colIdx >= 0 && !isZero(cleanZRow[colIdx])) {
-        const factor = cleanZRow[colIdx]
-        for (let j = 0; j < totalCols; j++) {
-          cleanZRow[j] -= factor * rows[i][j]
-        }
-      }
-    }
-    activeZRow = cleanZRow
   }
 
   const basicColIndices = new Set<number>()
@@ -1307,10 +1291,13 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
       }
     }
 
+    // Dual price / shadow price from the reduced cost of the slack/surplus.
+    // The internal simplex always maximizes: zRow[slack] = reduced cost of slack.
+    // For MAX original:   slack (+) => dual =  zRow[slack]; surplus (-) => dual = -zRow[slack]
+    // For MIN original:   slack (+) => dual =  zRow[slack]; surplus (-) => dual = -zRow[slack]
     let dualPrice = activeZRow[slackCol]
-    if (!isMaximization) {
-      const op = problem.constraintsData[i]?.operator
-      if (op === ">=") dualPrice = -dualPrice
+    if (problem.constraintsData[i]?.operator === ">=") {
+      dualPrice = -dualPrice
     }
 
     constraintValues.push({
