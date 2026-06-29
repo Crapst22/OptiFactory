@@ -55,6 +55,7 @@ export interface SimplexResult {
   status: "OPTIMAL" | "UNBOUNDED" | "INFEASIBLE" | "MULTIPLE" | "DEGENERATE"
   statusExplanation: string
   timeMs: number
+  finalZRow?: number[]
 }
 
 export interface SensitivityAnalysis {

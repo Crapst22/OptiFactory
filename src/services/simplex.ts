@@ -264,6 +264,7 @@ function extractResult(
     status,
     statusExplanation,
     timeMs: 0,
+    finalZRow: [...zRow],
   }
 }
 
@@ -1219,18 +1220,15 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
   // degenerate tableau.
   const hasIntTypes = problem.variableTypes?.some(t => t === "integer" || t === "binary") ?? false
   const isIntMethod = result.method === "INTEGER_PROGRAMMING"
-  console.log("SENSITIVITY DEBUG:", { hasIntTypes, isIntMethod, optimal: result.optimal, hasVars: !!result.variables, method: result.method, varTypes: problem.variableTypes })
   if ((isIntMethod || hasIntTypes) && result.optimal && result.variables) {
     let allFixed = true
     for (let v = 0; v < numVars; v++) {
       const vt = problem.variableTypes?.[v]
       if (vt === "integer" || vt === "binary") {
         const val = result.variables[varNames[v]]
-        console.log(`  var ${varNames[v]} = ${val} (type=${vt})`)
         if (!(Math.abs(val) < 1e-9 || Math.abs(val - 1) < 1e-9)) { allFixed = false; break }
       }
     }
-    console.log("  allFixed =", allFixed)
     if (allFixed) {
       const eqConstraints: ConstraintRow[] = []
       for (let v = 0; v < numVars; v++) {
@@ -1254,83 +1252,52 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
         constraintsData: [...problem.constraintsData, ...eqConstraints],
         variableTypes: new Array(numVars).fill("positive"),
       }
-      console.log("SENSITIVITY DEBUG: Calling solveSimplex for LP re-solve with", lpProblem.constraints, "constraints")
       const lpResult = solveSimplex({ ...lpProblem, method: "BIG_M" })
-      console.log("SENSITIVITY DEBUG: LP result optimal=", lpResult.optimal, "status=", lpResult.status, "iterations=", lpResult.iterations)
-      const lpSensitivity = calculateSensitivity(lpResult, lpProblem)
+      if (!lpResult.optimal || !lpResult.finalZRow || lpResult.steps.length === 0) {
+        throw new Error("LP re-solve failed to find optimal solution")
+      }
 
-      // Extract dual prices for original (non-equality) constraints
-      const origDualPrices: Record<string, number> = {}
+      const lpH = lpResult.steps[lpResult.steps.length - 1].table.headers
+      const lpZ = lpResult.finalZRow
+      const slackNames = generateSlackNames(numVars, lpProblem.constraints)
+
+      // Compute dual prices from LP result's post-pivot zRow.
+      const constraintValues: SensitivityConstraint[] = []
       for (let i = 0; i < numConstraints; i++) {
-        const key = `Restricción ${i + 1}`
-        origDualPrices[key] = lpSensitivity.dualPrices[key] ?? 0
+        const slackCol = lpH.indexOf(slackNames[i])
+        if (slackCol === -1) continue
+        let dualPrice = lpZ[slackCol]
+        if (lpProblem.constraintsData[i]?.operator === ">=") {
+          dualPrice = -dualPrice
+        }
+        const slackVal = lpResult.slackVariables[slackNames[i]] ?? 0
+        constraintValues.push({
+          constraint: `Restricción ${i + 1}`,
+          currentValue: lpProblem.constraintsData[i]?.value ?? 0,
+          allowIncrease: Infinity,
+          allowDecrease: Infinity,
+          dualPrice,
+          isBinding: Math.abs(slackVal) < 1e-10,
+        })
       }
 
-      // Compute reduced costs from the LP result's clean zRow.
-      // For binary/integer vars fixed by equality constraints, the RC equals
-      // the dual price of the equality constraint (= -zRow[artificial] for MIN).
-      const origGeqCount = problem.constraintsData.filter(c => c.operator === ">=").length
-      const finalRCs: Record<string, number> = {}
-      if (lpResult.steps.length > 0) {
-        const lpStep = lpResult.steps[lpResult.steps.length - 1]
-        const lpH = lpStep.table.headers
-        const lpR = lpStep.table.rows
-        const lpB = lpStep.table.basis
-        const lpC = lpH.length
-        const lpZ = new Array(lpC).fill(0)
-        for (let j = 0; j < lpC - 1; j++) {
-          const m = lpH[j].match(/^X(\d+)$/)
-          if (m) {
-            const vi = parseInt(m[1]) - 1
-            if (vi >= 0 && vi < numVars) {
-              lpZ[j] = isMaximization ? -problem.objective[vi] : problem.objective[vi]
-            }
-          }
-        }
-        for (let i = 0; i < lpB.length; i++) {
-          const ci = lpH.indexOf(lpB[i])
-          if (ci >= 0 && !isZero(lpZ[ci])) {
-            const f = lpZ[ci]
-            for (let j = 0; j < lpC; j++) lpZ[j] -= f * lpR[i][j]
-          }
-        }
-        let eqIdx = 0
-        for (let v = 0; v < numVars; v++) {
-          const name = varNames[v]
-          const vc = lpH.indexOf(name)
-          if (vc < 0) continue
-          const vt = problem.variableTypes?.[v]
-          if (vt === "integer" || vt === "binary") {
-            const aName = `A${origGeqCount + eqIdx + 1}`
-            const ac = lpH.indexOf(aName)
-            let rc = 0
-            if (ac >= 0) {
-              const raw = isMaximization ? lpZ[ac] : -lpZ[ac]
-              rc = Math.max(0, Math.round(raw * 1e6) / 1e6)
-            }
-            finalRCs[name] = rc
-            eqIdx++
-          } else {
-            const raw = isMaximization ? -lpZ[vc] : lpZ[vc]
-            finalRCs[name] = Math.max(0, Math.round(raw * 1e6) / 1e6)
-          }
-        }
-      }
-      if (result.reducedCosts) {
-        for (const [k, v] of Object.entries(finalRCs)) {
+      // Use lpResult.reducedCosts (post-pivot zRow, clean) directly.
+      if (result.reducedCosts && lpResult.reducedCosts) {
+        for (const [k, v] of Object.entries(lpResult.reducedCosts)) {
           result.reducedCosts[k] = v
         }
       }
 
-      console.log("SENSITIVITY DEBUG: LP re-solve SUCCESS, returning clean LP result")
       return {
-        ...lpSensitivity,
-        dualPrices: origDualPrices,
+        objectiveCoefficients: [],
+        constraintValues,
+        bindingConstraints: constraintValues.filter(c => c.isBinding).map(c => c.constraint),
+        slackValues: lpResult.slackVariables,
+        dualPrices: Object.fromEntries(constraintValues.map(c => [c.constraint, c.dualPrice])),
       }
     }
   }
 
-  console.log("SENSITIVITY DEBUG: Falling through to OLD path (B&B tableau)")
   // Remove artificial variables from the basis (degenerate at value 0)
   removeArtificialsFromBasis(headers, rows, basis, solution)
 
