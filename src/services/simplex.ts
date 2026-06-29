@@ -498,6 +498,38 @@ function solveTwoPhaseSimplex(problem: ProblemData, startTime: number): SimplexR
   }
   zRow[totalCols - 1] = 0
 
+  // Remove any artificials still in basis (degenerate at value 0) before Phase II
+  for (let r = 0; r < numConstraints; r++) {
+    if (!basis[r].startsWith("A")) continue
+    if (!isZero(tableau[r][totalCols - 1])) continue
+
+    let pivotCol = -1
+    for (let j = 0; j < totalCols - 1; j++) {
+      const h = headers[j]
+      if (h.startsWith("A")) continue
+      if (basis.includes(h)) continue
+      if (isZero(tableau[r][j])) continue
+      if (pivotCol === -1 || (!headers[pivotCol].startsWith("X") && h.startsWith("X"))) {
+        pivotCol = j
+      }
+    }
+    if (pivotCol === -1) continue
+
+    const pivotVal = tableau[r][pivotCol]
+    for (let j = 0; j < totalCols; j++) {
+      tableau[r][j] /= pivotVal
+    }
+    for (let i = 0; i < tableau.length; i++) {
+      if (i === r) continue
+      const factor = tableau[i][pivotCol]
+      if (isZero(factor)) continue
+      for (let j = 0; j < totalCols; j++) {
+        tableau[i][j] -= factor * tableau[r][j]
+      }
+    }
+    basis[r] = headers[pivotCol]
+  }
+
   // Adjust zRow for the current basis (eliminate basic columns from zRow)
   for (let i = 0; i < numConstraints; i++) {
     const b = basis[i]
@@ -919,11 +951,11 @@ export function solveTwoPhase(problem: ProblemData): SimplexResult {
 }
 
 export function autoDetectMethod(problem: ProblemData): SolveMethod {
-  const hasIntegerVars = problem.variableTypes.some(t => t === "integer" || t === "binary")
-  const hasEquality = problem.constraintsData.some((r) => r.operator === "=")
-  const hasGreaterEqual = problem.constraintsData.some((r) => r.operator === ">=")
-  const hasLessEqual = problem.constraintsData.some((r) => r.operator === "<=")
-  const hasFreeVariable = problem.variableTypes.includes("free")
+  const hasIntegerVars = problem.variableTypes?.some(t => t === "integer" || t === "binary") ?? false
+  const hasEquality = problem.constraintsData.some(r => r.operator === "=")
+  const hasGreaterEqual = problem.constraintsData.some(r => r.operator === ">=")
+  const hasLessEqual = problem.constraintsData.some(r => r.operator === "<=")
+  const hasFreeVariable = problem.variableTypes?.includes("free") ?? false
 
   if (hasIntegerVars) {
     return "INTEGER_PROGRAMMING"
@@ -932,7 +964,7 @@ export function autoDetectMethod(problem: ProblemData): SolveMethod {
     return "DUAL_SIMPLEX"
   }
   if (hasGreaterEqual || hasEquality) {
-    return "BIG_M"
+    return "TWO_PHASE"
   }
   if (hasFreeVariable) {
     return "BIG_M"
@@ -942,7 +974,7 @@ export function autoDetectMethod(problem: ProblemData): SolveMethod {
 
 export function solveProblem(problem: ProblemData): SimplexResult {
   let method = problem.method
-  if (method === "AUTO") {
+  if (!method || method === "AUTO") {
     method = autoDetectMethod(problem)
   }
   const startTime = performance.now()
@@ -1138,7 +1170,8 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
     if (slackCol === -1) continue
 
     const currentValue = problem.constraintsData[i]?.value || 0
-    const isBinding = !basicColIndices.has(slackCol)
+    const slackValue = result.slackVariables[slackNames[i]] ?? 0
+    const isBinding = isZero(slackValue)
 
     let allowIncrease = Infinity
     let allowDecrease = Infinity
