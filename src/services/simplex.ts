@@ -372,11 +372,42 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
     }
   }
 
-  // Rebuild zRow from original objective to ensure clean reduced costs
-  const finalZRow = tableau[tableau.length - 1]
+  // Pivot degenerate structural variables (value=0) out of the basis,
+  // preferring non-basic slack variables. This matches LINDO's basis selection.
   const totalColsFinal = tableau[0].length
   const numVars = problem.variables
   const numConstraints = problem.constraints
+  for (let r = 0; r < numConstraints; r++) {
+    if (!isZero(tableau[r][totalColsFinal - 1])) continue
+    const bv = basis[r]
+    if (bv.startsWith("H") || bv.startsWith("A")) continue
+
+    let pivotCol = -1
+    for (let j = 0; j < totalColsFinal - 1; j++) {
+      if (basis.includes(headers[j])) continue
+      if (!headers[j].startsWith("H")) continue
+      if (isZero(tableau[r][j])) continue
+      if (pivotCol === -1) pivotCol = j
+    }
+    if (pivotCol === -1) continue
+
+    const pivotVal = tableau[r][pivotCol]
+    for (let j = 0; j < totalColsFinal; j++) {
+      tableau[r][j] /= pivotVal
+    }
+    for (let i = 0; i < tableau.length; i++) {
+      if (i === r) continue
+      const factor = tableau[i][pivotCol]
+      if (isZero(factor)) continue
+      for (let j = 0; j < totalColsFinal; j++) {
+        tableau[i][j] -= factor * tableau[r][j]
+      }
+    }
+    basis[r] = headers[pivotCol]
+  }
+
+  // Rebuild zRow from original objective to ensure clean reduced costs
+  const finalZRow = tableau[tableau.length - 1]
   for (let j = 0; j < totalColsFinal - 1; j++) {
     finalZRow[j] = j < numVars ? -objective[j] : 0
   }
@@ -993,6 +1024,11 @@ export function solveIntegerProgramming(problem: ProblemData): SimplexResult {
     }
   }
 
+  // Solve LP relaxation for correct reduced costs (branch-and-bound modifies
+  // the constraint matrix with <=1 bounds and branch cuts, making its reduced
+  // costs incompatible with the original problem)
+  const lpResult = solveRelaxation(problem)
+
   const bestResult = branchAndBound(modifiedProblem, varNames, 0)
 
   if (!bestResult) {
@@ -1015,6 +1051,10 @@ export function solveIntegerProgramming(problem: ProblemData): SimplexResult {
   bestResult.timeMs = performance.now() - startTime
   bestResult.statusExplanation =
     "Solución óptima entera encontrada mediante Branch and Bound. Todos los valores de las variables enteras cumplen con las restricciones de integralidad."
+  // Use LP relaxation reduced costs for display (see note above)
+  if (lpResult?.reducedCosts) {
+    bestResult.reducedCosts = lpResult.reducedCosts
+  }
   return bestResult
 }
 
