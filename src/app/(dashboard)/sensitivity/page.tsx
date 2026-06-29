@@ -100,7 +100,7 @@ export default function SensitivityPage() {
       const newProblem: ProblemData = {
         ...problem,
         objective: problem.objective.map((v, i) => {
-          const varName = ["X", "Y", "Z"][i] || `X${i + 1}`
+          const varName = `X${i + 1}`
           return editingCoeffs[varName] !== undefined ? editingCoeffs[varName] : v
         }),
         constraintsData: problem.constraintsData.map((row, i) => {
@@ -414,7 +414,7 @@ export default function SensitivityPage() {
               </Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {problem.objective.map((v, i) => {
-                  const varName = ["X", "Y", "Z"][i] || `X${i + 1}`
+                  const varName = `X${i + 1}`
                   const currentVal = editingCoeffs[varName] ?? v
                   return (
                     <div key={varName} className="space-y-1">

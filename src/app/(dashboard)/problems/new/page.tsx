@@ -62,11 +62,7 @@ export default function NewProblemPage() {
 
   const varNames: string[] = []
   for (let i = 0; i < problem.variables; i++) {
-    if (problem.variables <= 3) {
-      varNames.push(["X", "Y", "Z"][i])
-    } else {
-      varNames.push(`X${i + 1}`)
-    }
+    varNames.push(`X${i + 1}`)
   }
 
   const handleSaveAndGo = () => {

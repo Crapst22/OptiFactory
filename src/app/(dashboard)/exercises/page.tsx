@@ -199,7 +199,7 @@ export default function ExercisesPage() {
 
   const allExercises = [...defaultExercises, ...savedExercises.filter((e) => e.isEnunciado)]
   const filtered = allExercises.filter((ex) => ex.difficulty === activeTab)
-  const varNames = (n: number) => Array.from({ length: n }, (_, i) => String.fromCharCode(87 + i))
+  const varNames = (n: number) => Array.from({ length: n }, (_, i) => `X${i + 1}`)
 
   const isSaved = (id: string) => id.startsWith("generated-")
 

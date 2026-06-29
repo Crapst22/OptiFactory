@@ -9,8 +9,7 @@ function isZero(v: number): boolean {
 function generateVariableNames(count: number): string[] {
   const names: string[] = []
   for (let i = 0; i < count; i++) {
-    const prefix = i < 3 ? ["X", "Y", "Z"][i] : `X${i + 1}`
-    names.push(prefix)
+    names.push(`X${i + 1}`)
   }
   return names
 }
@@ -279,8 +278,8 @@ export function solveSimplex(problem: ProblemData): SimplexResult {
     const pivotCol = findPivotColumn(zRow, headers)
     const currentTable: SimplexTable = {
       headers,
-      rows: tableau.slice(0, -1),
-      zRow,
+      rows: tableau.slice(0, -1).map(r => [...r]),
+      zRow: [...zRow],
       basis: [...basis],
       solution: tableau.map((row) => row[row.length - 1]),
     }
@@ -414,8 +413,8 @@ function solveTwoPhaseSimplex(problem: ProblemData, startTime: number): SimplexR
     const pivotCol = findPivotColumn(zRow, headers)
     const currentTable: SimplexTable = {
       headers,
-      rows: tableau.slice(0, -1),
-      zRow,
+      rows: tableau.slice(0, -1).map(r => [...r]),
+      zRow: [...zRow],
       basis: [...basis],
       solution: tableau.map((row) => row[row.length - 1]),
     }
@@ -518,8 +517,8 @@ function solveTwoPhaseSimplex(problem: ProblemData, startTime: number): SimplexR
     const pivotCol = findPivotColumn(zRow, headers)
     const currentTable: SimplexTable = {
       headers,
-      rows: tableau.slice(0, -1),
-      zRow,
+      rows: tableau.slice(0, -1).map(r => [...r]),
+      zRow: [...zRow],
       basis: [...basis],
       solution: tableau.map((row) => row[row.length - 1]),
     }
@@ -661,8 +660,8 @@ function solveDualSimplex(problem: ProblemData, startTime: number): SimplexResul
     const currentZRow = tableau[tableau.length - 1]
     const currentTable: SimplexTable = {
       headers,
-      rows: tableau.slice(0, -1),
-      zRow: currentZRow,
+      rows: tableau.slice(0, -1).map(r => [...r]),
+      zRow: [...zRow],
       basis: [...basis],
       solution: tableau.map((row) => row[row.length - 1]),
     }
@@ -916,7 +915,7 @@ export function solveBigM(problem: ProblemData): SimplexResult {
 }
 
 export function solveTwoPhase(problem: ProblemData): SimplexResult {
-  return solveSimplex(problem)
+  return solveTwoPhaseSimplex(problem, performance.now())
 }
 
 export function autoDetectMethod(problem: ProblemData): SolveMethod {
@@ -933,7 +932,7 @@ export function autoDetectMethod(problem: ProblemData): SolveMethod {
     return "DUAL_SIMPLEX"
   }
   if (hasGreaterEqual || hasEquality) {
-    return "TWO_PHASE"
+    return "BIG_M"
   }
   if (hasFreeVariable) {
     return "BIG_M"
@@ -1165,17 +1164,21 @@ export function getGraphData(problem: ProblemData, result: SimplexResult) {
     return { label: `${a}X₁ + ${b}X₂ ${row.operator} ${c}`, x1, y1, x2, y2 }
   })
 
+  const varNames = generateVariableNames(problem.variables)
+  const v1 = varNames[0]
+  const v2 = varNames[1]
+
   const feasibleRegion = [
     { x: 0, y: 0 },
-    { x: result.variables["X"] || 0, y: 0 },
-    { x: result.variables["X"] || 0, y: result.variables["Y"] || 0 },
-    { x: 0, y: result.variables["Y"] || 0 },
+    { x: result.variables[v1] || 0, y: 0 },
+    { x: result.variables[v1] || 0, y: result.variables[v2] || 0 },
+    { x: 0, y: result.variables[v2] || 0 },
   ]
 
   const optimalPoint = {
-    x: result.variables["X"] || 0,
-    y: result.variables["Y"] || 0,
-    label: `Óptimo (${Math.round((result.variables["X"] || 0) * 100) / 100}, ${Math.round((result.variables["Y"] || 0) * 100) / 100})`,
+    x: result.variables[v1] || 0,
+    y: result.variables[v2] || 0,
+    label: `Óptimo (${Math.round((result.variables[v1] || 0) * 100) / 100}, ${Math.round((result.variables[v2] || 0) * 100) / 100})`,
   }
 
   const objX = problem.objective[0] || 1
