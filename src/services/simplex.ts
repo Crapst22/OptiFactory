@@ -1024,11 +1024,6 @@ export function solveIntegerProgramming(problem: ProblemData): SimplexResult {
     }
   }
 
-  // Solve LP relaxation for correct reduced costs (branch-and-bound modifies
-  // the constraint matrix with <=1 bounds and branch cuts, making its reduced
-  // costs incompatible with the original problem)
-  const lpResult = solveRelaxation(problem)
-
   const bestResult = branchAndBound(modifiedProblem, varNames, 0)
 
   if (!bestResult) {
@@ -1051,10 +1046,6 @@ export function solveIntegerProgramming(problem: ProblemData): SimplexResult {
   bestResult.timeMs = performance.now() - startTime
   bestResult.statusExplanation =
     "Solución óptima entera encontrada mediante Branch and Bound. Todos los valores de las variables enteras cumplen con las restricciones de integralidad."
-  // Use LP relaxation reduced costs for display (see note above)
-  if (lpResult?.reducedCosts) {
-    bestResult.reducedCosts = lpResult.reducedCosts
-  }
   return bestResult
 }
 
@@ -1168,14 +1159,6 @@ function removeArtificialsFromBasis(
 }
 
 export function calculateSensitivity(result: SimplexResult, problem: ProblemData): SensitivityAnalysis {
-  // For integer programming, solve the LP relaxation on the original problem
-  // to get correct sensitivity (branch-and-bound adds <=1 bounds and branch cuts,
-  // making the stored tableau incompatible with the original problem dimensions)
-  if (result.method === "INTEGER_PROGRAMMING") {
-    const relaxationResult = solveRelaxation(problem)
-    return calculateSensitivity(relaxationResult, problem)
-  }
-
   const lastStep = result.steps[result.steps.length - 1]
   if (!lastStep || !lastStep.isOptimal) {
     throw new Error("Se requiere una solución óptima para el análisis de sensibilidad.")
