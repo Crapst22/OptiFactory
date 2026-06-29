@@ -1047,55 +1047,21 @@ export function solveIntegerProgramming(problem: ProblemData): SimplexResult {
   bestResult.statusExplanation =
     "Solución óptima entera encontrada mediante Branch and Bound. Todos los valores de las variables enteras cumplen con las restricciones de integralidad."
 
-  // Post-process: pivot binary variables at value 1 (upper bound) out of the basis,
-  // swapping with their ≤1 constraint slack. This matches LINDO's convention where
-  // variables at their upper bound are non-basic (their reduced cost reflects the
-  // dual price of the bound constraint).
+  // Rebuild reduced costs from the zRow to remove any Big-M residues.
   if (hasBinary && bestResult.optimal && bestResult.steps.length > 0) {
     const lastStep = bestResult.steps[bestResult.steps.length - 1]
-    const { headers, rows, basis, solution } = lastStep.table
+    const { headers, rows, basis } = lastStep.table
     const totalCols = headers.length
-    let binaryOffset = 0
-    for (let vi = 0; vi < problem.variables; vi++) {
-      if (problem.variableTypes[vi] !== "binary") continue
-      const varName = `X${vi + 1}`
-      const slackName = `H${problem.constraints + binaryOffset + 1}`
-      const basisRow = basis.indexOf(varName)
-      if (basisRow === -1) { binaryOffset++; continue }
-      if (Math.abs(solution[basisRow] - 1) > 1e-6) { binaryOffset++; continue }
-      const slackCol = headers.indexOf(slackName)
-      if (slackCol === -1) { binaryOffset++; continue }
-      if (basis.includes(slackName)) { binaryOffset++; continue }
-      if (isZero(rows[basisRow][slackCol])) { binaryOffset++; continue }
+    const isMax = modifiedProblem.problemType === "MAX"
 
-      const pivotVal = rows[basisRow][slackCol]
-      for (let j = 0; j < totalCols; j++) {
-        rows[basisRow][j] /= pivotVal
-      }
-      solution[basisRow] /= pivotVal
-      for (let i = 0; i < rows.length; i++) {
-        if (i === basisRow) continue
-        const factor = rows[i][slackCol]
-        if (isZero(factor)) continue
-        for (let j = 0; j < totalCols; j++) {
-          rows[i][j] -= factor * rows[basisRow][j]
-        }
-        solution[i] -= factor * solution[basisRow]
-      }
-      basis[basisRow] = slackName
-
-      binaryOffset++
-    }
-
-    // Rebuild zRow after pivoting
     const activeZRow = new Array(totalCols).fill(0)
     for (let j = 0; j < totalCols - 1; j++) {
       const h = headers[j]
       const match = h.match(/^X(\d+)$/)
       if (match) {
         const varIdx = parseInt(match[1]) - 1
-        if (varIdx >= 0 && varIdx < problem.variables) {
-          activeZRow[j] = problem.problemType === "MAX" ? -problem.objective[varIdx] : problem.objective[varIdx]
+        if (varIdx >= 0 && varIdx < modifiedProblem.variables) {
+          activeZRow[j] = isMax ? -modifiedProblem.objective[varIdx] : modifiedProblem.objective[varIdx]
         }
       }
     }
@@ -1111,10 +1077,10 @@ export function solveIntegerProgramming(problem: ProblemData): SimplexResult {
     }
 
     if (!bestResult.reducedCosts) bestResult.reducedCosts = {}
-    for (let v = 0; v < problem.variables; v++) {
+    for (let v = 0; v < modifiedProblem.variables; v++) {
       const colIdx = headers.indexOf(`X${v + 1}`)
       if (colIdx >= 0) {
-        const raw = problem.problemType === "MAX" ? -activeZRow[colIdx] : activeZRow[colIdx]
+        const raw = isMax ? -activeZRow[colIdx] : activeZRow[colIdx]
         bestResult.reducedCosts[`X${v + 1}`] = Math.max(0, Math.round(raw * 1e6) / 1e6)
       }
     }
@@ -1247,6 +1213,113 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
   const varNames = generateVariableNames(numVars)
   const slackNames = generateSlackNames(numVars, numConstraints)
 
+  // For integer problems with binary variables fixed to 0 or 1, re-solve as a
+  // pure LP with equality constraints. This gives correct dual prices and reduced
+  // costs from a clean simplex run instead of a B&B node's degenerate tableau.
+  const hasBinary = problem.variableTypes?.some(t => t === "binary") ?? false
+  if (hasBinary && result.optimal && result.variables) {
+    let allFixed = true
+    for (let v = 0; v < numVars; v++) {
+      if (problem.variableTypes[v] === "binary") {
+        const val = result.variables[varNames[v]]
+        if (val !== 0 && val !== 1) { allFixed = false; break }
+      }
+    }
+    if (allFixed) {
+      const eqConstraints: ConstraintRow[] = []
+      for (let v = 0; v < numVars; v++) {
+        if (problem.variableTypes[v] !== "binary") continue
+        const coeffs = new Array(numVars).fill(0)
+        coeffs[v] = 1
+        eqConstraints.push({
+          coefficients: coeffs,
+          operator: "=",
+          value: result.variables[varNames[v]] ?? 0,
+        })
+      }
+      const lpProblem: ProblemData = {
+        title: problem.title,
+        problemType: problem.problemType,
+        method: "BIG_M",
+        variables: numVars,
+        constraints: numConstraints + eqConstraints.length,
+        objective: [...problem.objective],
+        constraintsData: [...problem.constraintsData, ...eqConstraints],
+        variableTypes: new Array(numVars).fill("positive"),
+      }
+      const lpResult = solveSimplex({ ...lpProblem, method: "BIG_M" })
+      const lpSensitivity = calculateSensitivity(lpResult, lpProblem)
+
+      // Extract dual prices for original (non-equality) constraints
+      const origDualPrices: Record<string, number> = {}
+      for (let i = 0; i < numConstraints; i++) {
+        const key = `Restricción ${i + 1}`
+        origDualPrices[key] = lpSensitivity.dualPrices[key] ?? 0
+      }
+
+      // Compute binary variable reduced costs from the equality constraint
+      // artificial columns.  In the LP tableau, artificials for equality
+      // constraints come after artificials for original ≥ constraints.
+      // RC(binary) = dual price of its equality constraint = -zRow[A] for MIN.
+      const origGeqCount = problem.constraintsData.filter(c => c.operator === ">=").length
+      const finalRCs: Record<string, number> = {}
+      if (lpResult.steps.length > 0) {
+        const lpStep = lpResult.steps[lpResult.steps.length - 1]
+        const lpH = lpStep.table.headers
+        const lpR = lpStep.table.rows
+        const lpB = lpStep.table.basis
+        const lpC = lpH.length
+        const lpZ = new Array(lpC).fill(0)
+        for (let j = 0; j < lpC - 1; j++) {
+          const m = lpH[j].match(/^X(\d+)$/)
+          if (m) {
+            const vi = parseInt(m[1]) - 1
+            if (vi >= 0 && vi < numVars) {
+              lpZ[j] = isMaximization ? -problem.objective[vi] : problem.objective[vi]
+            }
+          }
+        }
+        for (let i = 0; i < lpB.length; i++) {
+          const ci = lpH.indexOf(lpB[i])
+          if (ci >= 0 && !isZero(lpZ[ci])) {
+            const f = lpZ[ci]
+            for (let j = 0; j < lpC; j++) lpZ[j] -= f * lpR[i][j]
+          }
+        }
+        let eqIdx = 0
+        for (let v = 0; v < numVars; v++) {
+          const name = varNames[v]
+          const vc = lpH.indexOf(name)
+          if (vc < 0) continue
+          if (problem.variableTypes[v] === "binary") {
+            const aName = `A${origGeqCount + eqIdx + 1}`
+            const ac = lpH.indexOf(aName)
+            let rc = 0
+            if (ac >= 0) {
+              const raw = isMaximization ? lpZ[ac] : -lpZ[ac]
+              rc = Math.max(0, Math.round(raw * 1e6) / 1e6)
+            }
+            finalRCs[name] = rc
+            eqIdx++
+          } else {
+            const raw = isMaximization ? -lpZ[vc] : lpZ[vc]
+            finalRCs[name] = Math.max(0, Math.round(raw * 1e6) / 1e6)
+          }
+        }
+      }
+      if (result.reducedCosts) {
+        for (const [k, v] of Object.entries(finalRCs)) {
+          result.reducedCosts[k] = v
+        }
+      }
+
+      return {
+        ...lpSensitivity,
+        dualPrices: origDualPrices,
+      }
+    }
+  }
+
   // Remove artificial variables from the basis (degenerate at value 0)
   removeArtificialsFromBasis(headers, rows, basis, solution)
 
@@ -1283,43 +1356,6 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
       solution[i] -= factor * solution[r]
     }
     basis[r] = headers[pivotCol]
-  }
-
-  // Pivot binary variables at their upper bound (value=1) with their ≤1 constraint
-  // slack, so they become non-basic (matching LINDO's convention).
-  const hasIntegerVars = problem.variableTypes?.some(t => t === "binary") ?? false
-  if (hasIntegerVars && result.method === "INTEGER_PROGRAMMING") {
-    let binaryOffset = 0
-    for (let vi = 0; vi < numVars; vi++) {
-      if (problem.variableTypes[vi] !== "binary") continue
-      const varName = `X${vi + 1}`
-      const slackName = `H${numConstraints + binaryOffset + 1}`
-      const basisRow = basis.indexOf(varName)
-      if (basisRow === -1) { binaryOffset++; continue }
-      if (Math.abs(solution[basisRow] - 1) > 1e-6) { binaryOffset++; continue }
-      const slackCol = headers.indexOf(slackName)
-      if (slackCol === -1) { binaryOffset++; continue }
-      if (basis.includes(slackName)) { binaryOffset++; continue }
-      if (isZero(rows[basisRow][slackCol])) { binaryOffset++; continue }
-
-      const pivotVal = rows[basisRow][slackCol]
-      for (let j = 0; j < totalCols; j++) {
-        rows[basisRow][j] /= pivotVal
-      }
-      solution[basisRow] /= pivotVal
-      for (let i = 0; i < rows.length; i++) {
-        if (i === basisRow) continue
-        const factor = rows[i][slackCol]
-        if (isZero(factor)) continue
-        for (let j = 0; j < totalCols; j++) {
-          rows[i][j] -= factor * rows[basisRow][j]
-        }
-        solution[i] -= factor * solution[basisRow]
-      }
-      basis[basisRow] = slackName
-
-      binaryOffset++
-    }
   }
 
   // Always rebuild the zRow from the original objective coefficients.
