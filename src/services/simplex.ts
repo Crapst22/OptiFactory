@@ -1366,6 +1366,11 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
             objCoeffsResult[v].allowDecrease = lindoRC[v]
           }
         }
+        if (result.reducedCosts) {
+          for (let v = 0; v < numVars; v++) {
+            result.reducedCosts[varNames[v]] = lindoRC[v]
+          }
+        }
       }
 
       return {
@@ -1585,6 +1590,11 @@ export function calculateSensitivity(result: SimplexResult, problem: ProblemData
     for (let v = 0; v < objCoeffs.length; v++) {
       if (!objCoeffs[v].isBasic) {
         objCoeffs[v].allowDecrease = lindoRC[v]
+      }
+    }
+    if (result.reducedCosts) {
+      for (let v = 0; v < numVars; v++) {
+        result.reducedCosts[varNames[v]] = lindoRC[v]
       }
     }
   }
